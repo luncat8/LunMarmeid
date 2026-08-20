@@ -48,6 +48,7 @@
 		.tool-btn:hover,
 		.panel-title-btn:hover { background: #4a6278; }
 		.tool-btn.active { background: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,0.4); }
+		.tool-btn:disabled { background: #bdc3c7; color: #7f8c8d; cursor: not-allowed; box-shadow: none; }
 		.toolbar button.secondary { background: #7f8c8d; padding: 6px 12px; font-size: 12px; }
 		.toolbar button.secondary:hover { background: #95a5a6; }
 
@@ -318,7 +319,7 @@
 			<button class="tool-btn" data-mode="select" onclick="setMode('select')">Select</button>
 			<button class="tool-btn" data-mode="add" onclick="setMode('add')">Add</button>
 			<button class="tool-btn" data-mode="delete" onclick="setMode('delete')">Delete</button>
-			<button class="tool-btn" onclick="colorizeSelected()">Colorize</button>
+			<button id="colorize-btn" class="tool-btn" onclick="colorizeSelected()" title="Select nodes to colorize" disabled>Colorize</button>
 			
 			<div class="spacer"></div>
 			
@@ -484,6 +485,7 @@
 		// === DOM refs (cached) ===
 		let canvasPane, canvas, canvasSpacer, canvasWorld, gridSvg, svg, propContent, selectedPanel, selectedCaption, selectionDropdown, mermaidRender, mermaidCode, snapToggle;
 		let tmplId, tmplLabel, tmplShape, tmplParent, tmplW, tmplH, tmplColor;
+		let colorizeBtn;
 		let searchFilters = { type: '', id: '', label: '', shape: '' };
 		let suppressSelectionDropdownChange = false;
 		let undoBtn, redoBtn;
@@ -1961,6 +1963,20 @@
 			if (node.element) node.element.style.backgroundColor = hex;
 		}
 
+		function hasColorizableSelection() {
+			if (!selected) return false;
+			if (selected.type === 'node') return !!nodes[selected.id];
+			if (selected.type === 'multi') return getSelectedNodeIds().length > 0;
+			return false;
+		}
+
+		function updateColorizeButton() {
+			if (!colorizeBtn) return;
+			const has = hasColorizableSelection();
+			colorizeBtn.disabled = !has;
+			colorizeBtn.title = has ? '' : 'Select nodes to colorize';
+		}
+
 		function colorizeSelected() {
 			let ids = getSelectedNodeIds();
 			if (!ids.length && selected && selected.type === 'node') ids = [selected.id];
@@ -2466,6 +2482,7 @@
 			propContent.innerHTML = '';
 			if (selectedPanel) selectedPanel.classList.toggle('search-mode', !selected);
 			if (selectedCaption) selectedCaption.textContent = selected ? 'Selected:' : 'Search mode:';
+			updateColorizeButton();
 			renderSelectionDropdown();
 
 			if (!selected) {
@@ -4633,6 +4650,7 @@
 			snapToggle = document.getElementById('snap-toggle');
 			undoBtn = document.getElementById('undo-btn');
 			redoBtn = document.getElementById('redo-btn');
+			colorizeBtn = document.getElementById('colorize-btn');
 			updateUndoRedoButtons();
 			applyCanvasZoom();
 
