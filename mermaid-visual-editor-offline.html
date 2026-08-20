@@ -1,0 +1,4664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Mermaid Visual Editor</title>
+	<style>
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+			height: 100vh;
+			overflow: hidden;
+		}
+
+		.app { display: flex; flex-direction: column; height: 100vh; }
+
+		/* Toolbar */
+		.toolbar {
+			background: #2c3e50;
+			color: #fff;
+			padding: 8px 12px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-shrink: 0;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		.toolbar h1 { font-size: 16px; font-weight: 600; margin-right: 16px; }
+		.toolbar .spacer,
+		.pane-header .spacer,
+		.preview-header .spacer,
+		.code-header .spacer { flex: 1; }
+
+		.tool-btn {
+			background: #34495e;
+			color: #fff;
+			border: none;
+			padding: 6px 14px;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 13px;
+			font-weight: 500;
+			transition: background 0.1s;
+		}
+		.tool-btn:hover,
+		.panel-title-btn:hover { background: #4a6278; }
+		.tool-btn.active { background: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,0.4); }
+		.toolbar button.secondary { background: #7f8c8d; padding: 6px 12px; font-size: 12px; }
+		.toolbar button.secondary:hover { background: #95a5a6; }
+
+		/* Top panels */
+		.top-panels {
+			display: flex;
+			gap: 12px;
+			padding: 10px 12px;
+			background: #fff;
+			border-bottom: 1px solid #e0e0e0;
+			flex-shrink: 0;
+		}
+		.top-panels > .panel {
+			flex: 1 1 0%;
+			min-width: 0;
+			height: 174px;
+			min-height: 174px;
+			max-height: 174px;
+			overflow: hidden;
+		}
+		.panel {
+			background: #fafafa;
+			border: 1px solid #ddd;
+			border-radius: 6px;
+			padding: 10px 12px;
+			display: flex;
+			flex-direction: column;
+		}
+		.panel.search-mode { background: #fffbe6; border-color: #f1d36b; }
+
+		.panel-title-btn,
+		.selected-panel-head {
+			height: 24px;
+			min-height: 24px;
+			max-height: 24px;
+			margin: 0 0 6px;
+			flex-shrink: 0;
+		}
+		.panel-title-btn {
+			align-self: flex-start;
+			background: #34495e;
+			color: #fff;
+			border: none;
+			border-radius: 4px;
+			padding: 0 10px;
+			font-size: 12px;
+			line-height: 24px;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.selected-panel-head { display: flex; align-items: center; gap: 8px; }
+		#selected-caption {
+			flex: 0 0 auto;
+			height: 24px;
+			margin: 0;
+			font-size: 12px;
+			line-height: 24px;
+			font-weight: 600;
+			white-space: nowrap;
+		}
+		.selection-dropdown {
+			flex: 1;
+			min-width: 0;
+			height: 24px;
+			padding: 2px 8px;
+			border: 1px solid #ccc;
+			border-radius: 3px;
+			font-size: 12px;
+			line-height: 18px;
+			background: #fff;
+		}
+
+		#prop-content { flex: 1; min-height: 0; overflow: visible; }
+		.panel-row,
+		#prop-content .prop-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			height: 26px;
+			min-height: 26px;
+			max-height: 26px;
+			margin: 0 0 6px;
+			padding: 0;
+		}
+		.panel-row:last-child,
+		#prop-content .prop-row:last-child { margin-bottom: 0; }
+		.panel-row.two-col,
+		#prop-content .prop-row.two-col,
+		.panel-row.three-col,
+		#prop-content .prop-row.three-col { display: grid; align-items: center; gap: 8px; }
+		.panel-row.two-col,
+		#prop-content .prop-row.two-col { grid-template-columns: 1fr 1fr; }
+		.panel-row.three-col,
+		#prop-content .prop-row.three-col { grid-template-columns: 1fr 1fr 1fr; }
+
+		.panel-field,
+		#prop-content .panel-field {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			min-width: 0;
+			height: 26px;
+		}
+		.top-panels label,
+		#prop-content label {
+			height: 26px;
+			line-height: 26px;
+			margin: 0;
+			padding: 0;
+			font-size: 12px;
+			color: #555;
+			white-space: nowrap;
+		}
+		.panel-field label,
+		#prop-content .panel-field label { min-width: 34px; flex: 0 0 34px; }
+		.panel-row > label,
+		#prop-content .prop-row > label { min-width: 66px; flex: 0 0 66px; }
+
+		.top-panels input[type="text"],
+		.top-panels input[type="number"],
+		.top-panels select,
+		#prop-content input[type="text"],
+		#prop-content input[type="number"],
+		#prop-content select {
+			height: 26px;
+			min-height: 26px;
+			max-height: 26px;
+			min-width: 0;
+			padding: 4px 8px;
+			margin: 0;
+			border: 1px solid #ccc;
+			border-radius: 3px;
+			font-size: 13px;
+			line-height: 16px;
+		}
+		.panel-row > input[type="text"],
+		.panel-row > input[type="number"],
+		.panel-row > select,
+		#prop-content .prop-row > input[type="text"],
+		#prop-content .prop-row > input[type="number"],
+		#prop-content .prop-row > select,
+		.panel-field input,
+		.panel-field select,
+		#prop-content .panel-field input,
+		#prop-content .panel-field select { flex: 1; }
+		.top-panels input[type="color"],
+		#prop-content input[type="color"] {
+			width: 42px;
+			height: 26px;
+			padding: 0;
+			margin: 0;
+			border: 1px solid #ccc;
+			border-radius: 3px;
+			cursor: pointer;
+		}
+		.panel-field input[type="color"],
+		#prop-content .panel-field input[type="color"] { flex: 0 0 42px; }
+		.empty-state,
+		#prop-content .empty-state { color: #999; font-size: 12px; font-style: italic; text-align: center; }
+
+		/* Workspace */
+		.workspace { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0; gap: 0; }
+		.split-container { flex: 1; display: flex; min-height: 0; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; background: #fff; }
+		.pane { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+		#canvas-pane { flex: 0 0 40%; border-right: 1px solid #ddd; }
+		.canvas { flex: 1; position: relative; background: #fff; overflow: hidden; min-width: 900px; min-height: 290px; cursor: default; }
+		#canvas-spacer { position: relative; width: 100%; height: 100%; }
+		#canvas-world { position: absolute; top: 0; left: 0; width: 960px; height: 540px; transform-origin: 0 0; background: transparent; overflow: visible; }
+		#grid-svg,
+		#links-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; }
+		#grid-svg { pointer-events: none; z-index: 0; }
+		#links-svg { pointer-events: none; z-index: 3; }
+		.selection-box { position: absolute; border: 1px dashed #3498db; background: rgba(52,152,219,0.12); pointer-events: none; z-index: 1000; }
+
+		/* Nodes */
+		.node {
+			position: absolute;
+			background: #fff;
+			border: 2px solid #2c3e50;
+			padding: 6px 14px;
+			border-radius: 4px;
+			cursor: grab;
+			user-select: none;
+			box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+			font-size: 13px;
+			font-weight: 500;
+			z-index: 2;
+			min-width: 20px;
+			min-height: 20px;
+			text-align: center;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			white-space: nowrap;
+			transition: box-shadow 0.1s, border-color 0.1s;
+		}
+		.node:active { cursor: grabbing; }
+		.node.selected { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.25); z-index: 3; }
+		.node-label { pointer-events: none; }
+		.shape-round { border-radius: 18px; }
+		.shape-circle { border-radius: 50%; min-width: 20px; min-height: 20px; aspect-ratio: 1 / 1; padding: 8px; justify-content: center; }
+		.shape-diamond { border-radius: 3px; transform: rotate(45deg); width: 72px; height: 72px; min-width: 20px; min-height: 20px; padding: 8px; }
+		.shape-diamond .node-label { transform: rotate(-45deg); max-width: 78px; line-height: 1.1; white-space: normal; overflow-wrap: anywhere; }
+		.shape-stadium { border-radius: 999px; padding: 6px 18px; }
+
+		.link-handle,
+		.clone-handle {
+			position: absolute;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 15px;
+			height: 15px;
+			color: #fff;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 11px;
+			font-weight: 700;
+			border: 2px solid #fff;
+			box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+			z-index: 10;
+			transition: background 0.1s, transform 0.1s;
+		}
+		.link-handle { right: -7px; background: #3498db; cursor: crosshair; }
+		.clone-handle { left: -7px; background: #8e44ad; cursor: copy; font-size: 10px; }
+		.link-handle:hover { background: #2980b9; transform: translateY(-50%) scale(1.1); }
+		.clone-handle:hover { background: #71368a; transform: translateY(-50%) scale(1.1); }
+		.shape-diamond .link-handle { right: -14px; transform: translateY(-50%) rotate(-45deg); }
+		.shape-diamond .clone-handle { left: -14px; transform: translateY(-50%) rotate(-45deg); }
+		.shape-diamond .link-handle:hover { transform: translateY(-50%) rotate(-45deg) scale(1.1); }
+		.shape-diamond .clone-handle:hover { transform: translateY(-50%) rotate(-45deg) scale(1.1); }
+
+		/* Splitters */
+		.resizer,
+		.code-resizer { background: #ddd; flex-shrink: 0; position: relative; z-index: 10; transition: background 0.1s; }
+		.resizer { width: 6px; cursor: col-resize; }
+		.code-resizer { height: 6px; cursor: row-resize; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+		.resizer:hover,
+		.code-resizer:hover { background: #3498db; }
+		.resizer:active,
+		.code-resizer:active { background: #2980b9; }
+		.code-resizer::after { content: ""; position: absolute; left: 50%; top: 50%; width: 34px; height: 2px; transform: translate(-50%, -50%); border-top: 1px solid rgba(0,0,0,0.22); border-bottom: 1px solid rgba(0,0,0,0.22); }
+
+		/* Preview / code */
+		#preview-pane { flex: 1; display: flex; flex-direction: column; min-width: 280px; }
+		.preview-header,
+		.pane-header,
+		.code-header { padding: 6px 10px; background: #f8f9fa; border-bottom: 1px solid #eee; font-size: 11px; font-weight: 600; color: #555; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+		.code-header { padding-top: 4px; padding-bottom: 4px; font-size: 10px; color: #666; }
+		.panel-save-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 2px; color: #444; }
+		.panel-save-btn:hover { background: #eef6ff; border-color: #9cc8ee; }
+		.header-check { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #555; user-select: none; }
+		.header-check input { width: 12px; height: 12px; }
+		#mermaid-render { flex: 1 1 auto; padding: 12px; overflow: auto; background: #fff; min-height: 90px; }
+		#mermaid-render svg { max-width: 100%; height: auto; }
+		.code-section { flex: 0 0 40%; min-height: 90px; display: flex; flex-direction: column; overflow: hidden; }
+		#mermaid-code { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; padding: 8px 10px; border: none; resize: none; background: #f8f8f8; color: #444; overflow: auto; line-height: 1.35; min-height: 0; }
+</style>
+</head>
+<body>
+	<div class="app">
+		<!-- Toolbar -->
+		<div class="toolbar">
+			<h1>Mermaid Visual Editor</h1>
+			
+			<button class="tool-btn active" data-mode="universal" onclick="setMode('universal')">Universal</button>
+			<button class="tool-btn" data-mode="select" onclick="setMode('select')">Select</button>
+			<button class="tool-btn" data-mode="add" onclick="setMode('add')">Add</button>
+			<button class="tool-btn" data-mode="delete" onclick="setMode('delete')">Delete</button>
+			<button class="tool-btn" onclick="colorizeSelected()">Colorize</button>
+			
+			<div class="spacer"></div>
+			
+			<button class="tool-btn secondary" onclick="deleteSelected()">Delete Selected</button>
+			<button class="tool-btn secondary" onclick="clearAll()">Clear All</button>
+			<button class="tool-btn secondary" onclick="copyCode()">Copy Code</button>
+		</div>
+		
+		<!-- Template + Properties -->
+		<div class="top-panels">
+			<!-- New Object Template -->
+			<div class="panel">
+				<button class="panel-title-btn" onclick="spawnFromTemplateButton()">New Object</button>
+				<div class="panel-row two-col">
+					<div class="panel-field">
+						<label>ID</label>
+						<input type="text" id="tmpl-id" value="Node_1">
+					</div>
+					<div class="panel-field">
+						<label>Label</label>
+						<input type="text" id="tmpl-label" value="Node">
+					</div>
+				</div>
+				<div class="panel-row">
+					<label>Shape</label>
+					<select id="tmpl-shape">
+						<option value="rect">Rectangle []</option>
+						<option value="round">Rounded ()</option>
+						<option value="circle">Circle (())</option>
+						<option value="diamond">Diamond {}</option>
+						<option value="stadium">Stadium ([])</option>
+					</select>
+				</div>
+				<div class="panel-row">
+					<label>Parent</label>
+					<select id="tmpl-parent">
+						<option value="">(none)</option>
+					</select>
+				</div>
+				<div class="panel-row three-col">
+					<div class="panel-field">
+						<label>W</label>
+						<input type="number" id="tmpl-w" min="10" step="1" value="90">
+					</div>
+					<div class="panel-field">
+						<label>H</label>
+						<input type="number" id="tmpl-h" min="10" step="1" value="36">
+					</div>
+					<div class="panel-field">
+						<label>Color</label>
+						<input type="color" id="tmpl-color" value="#e8f4fc">
+					</div>
+				</div>
+
+			</div>
+			
+			<!-- Selected Properties -->
+			<div class="panel" id="selected-panel">
+				<div class="selected-panel-head">
+					<h3 id="selected-caption">Search mode:</h3>
+					<select id="selection-dropdown" class="selection-dropdown"></select>
+				</div>
+				<div id="prop-content"></div>
+			</div>
+		</div>
+		
+		<!-- Main Workspace -->
+		<div class="workspace">
+			<div class="split-container" id="split-container">
+				<!-- Canvas -->
+				<div class="pane" id="canvas-pane">
+					<div class="pane-header">
+						Visual Objects
+						<span class="spacer"></span>
+						<button class="panel-save-btn" id="undo-btn" onclick="undoHistory()" title="Undo">↺</button>
+						<button class="panel-save-btn" id="redo-btn" onclick="redoHistory()" title="Redo">↻</button>
+						<label class="header-check"><input type="checkbox" id="snap-toggle">snap</label>
+						<button class="panel-save-btn" onclick="loadObjectsJsonFile()">JSON Load</button>
+						<button class="panel-save-btn" onclick="pasteObjectsJsonClipboard()">JSON Paste Clipboard</button>
+						<button class="panel-save-btn" onclick="saveObjectsJson()">Save JSON</button>
+					</div>
+					<div class="canvas" id="canvas">
+						<div id="canvas-spacer">
+							<div id="canvas-world">
+								<svg id="grid-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+								<svg id="links-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<!-- Resizer -->
+				<div class="resizer" id="resizer"></div>
+				
+				<!-- Preview -->
+				<div class="pane" id="preview-pane">
+					<div class="preview-header">
+						Mermaid Preview
+						<span class="spacer"></span>
+						<button class="panel-save-btn" onclick="forceRenderPreview()">Render Now</button>
+						<button class="panel-save-btn" onclick="savePreviewSvg()">Save SVG</button>
+					</div>
+					<div id="mermaid-render"></div>
+					
+					<div class="code-resizer" id="code-resizer" title="Drag to resize code area; double-click to reset to 40% height"></div>
+					
+					<div class="code-section" id="code-section">
+						<div class="code-header">
+							Mermaid Code
+							<span class="spacer"></span>
+							<button class="panel-save-btn" onclick="loadMermaidFile()">.mmd Load</button>
+							<button class="panel-save-btn" onclick="pasteMermaidClipboard()">Paste Clipboard</button>
+							<button class="panel-save-btn" onclick="copyCode()">Copy to Clipboard</button>
+							<button class="panel-save-btn" onclick="saveMermaidText()">Save Text</button>
+						</div>
+						<textarea id="mermaid-code" spellcheck="false"></textarea>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="mermaid.min.js"></script>
+	<script>
+		// Fast vanilla Mermaid visual editor - zero dependencies beyond CDN
+		'use strict';
+
+		// === Core State (minimal allocations) ===
+		let nodes = Object.create(null);      // id -> {id, label, left, top, w, h, shape, color, element}
+		let links = [];                       // [{id, from, to, label, color}]
+		let linkElements = Object.create(null); // id -> SVG <line> for ultra-fast attribute-only updates
+		let linkLabelElements = Object.create(null); // id -> SVG <text> label on visual canvas
+		let nextNodeId = 1;
+		let nextLinkId = 1;
+
+		let template = {
+			id: 'Node_1',
+			label: 'Node',
+			shape: 'rect',
+			parent: '',
+			w: 90,
+			h: 36,
+			color: '#e8f4fc'
+		};
+
+		let currentMode = 'universal';
+		let selected = null;                  // {type: 'node'|'link', id}
+
+		let dragState = null;                 // node drag
+		let linkDrag = null;                  // link creation drag
+		let suppressCanvasAddUntil = 0;       // prevents Universal mode from adding a node after drag mouseup
+		let suppressNodeClickUntil = 0;       // prevents post-drag click from collapsing multi-selection
+		let canvasZoom = 1;
+		let canvasPanX = 0;
+		let canvasPanY = 0;
+		let snapToGrid = false;
+		const snapGridSize = 20;
+		let canvasBaseWidth = 960;
+		let canvasBaseHeight = 540;
+		let referenceFrameWidth = 960;
+		let referenceFrameHeight = 540;
+
+		// === DOM refs (cached) ===
+		let canvasPane, canvas, canvasSpacer, canvasWorld, gridSvg, svg, propContent, selectedPanel, selectedCaption, selectionDropdown, mermaidRender, mermaidCode, snapToggle;
+		let tmplId, tmplLabel, tmplShape, tmplParent, tmplW, tmplH, tmplColor;
+		let searchFilters = { type: '', id: '', label: '', shape: '' };
+		let suppressSelectionDropdownChange = false;
+		let undoBtn, redoBtn;
+		let historyStack = [];
+		let historyIndex = -1;
+		let isApplyingHistory = false;
+		let historyTimer = null;
+		const maxHistoryEntries = 100;
+
+
+		const SHAPE_SYNTAX = Object.create(null);
+		SHAPE_SYNTAX.rect = { open: '[', close: ']' };
+		SHAPE_SYNTAX.round = { open: '(', close: ')' };
+		SHAPE_SYNTAX.circle = { open: '((', close: '))' };
+		SHAPE_SYNTAX.diamond = { open: '{', close: '}' };
+		SHAPE_SYNTAX.stadium = { open: '([', close: '])' };
+
+		const SHAPES = [
+			{ value: 'rect', label: 'Rectangle []' },
+			{ value: 'round', label: 'Rounded ()' },
+			{ value: 'circle', label: 'Circle (())' },
+			{ value: 'diamond', label: 'Diamond {}' },
+			{ value: 'stadium', label: 'Stadium ([])' }
+		];
+
+		let direction = 'TD';
+		let lastGeneratedCode = '';
+
+		// === Debounce + guard to prevent freezes from rapid mermaid renders ===
+
+		// === Fast string building (array + join, no repeated +) ===
+		function generateMermaidCode() {
+			const lines = [];
+			lines.push('flowchart ' + direction);
+
+			// Nodes
+			for (const id in nodes) {
+				const n = nodes[id];
+				const syntax = SHAPE_SYNTAX[n.shape] || SHAPE_SYNTAX.rect;
+				const label = n.label.replace(/["|]/g, ''); // minimal escape
+				lines.push('    ' + id + syntax.open + label + syntax.close);
+			}
+
+			// Visual editor metadata (Mermaid comments, safe for preview).
+			// Keeps canvas-only properties such as width/height through manual code edits.
+			for (const id in nodes) {
+				const n = nodes[id];
+				if (n.w || n.h || n.parent) {
+					let meta = '    %% visual ' + id + ' w:' + Math.round(n.w || 0) + ' h:' + Math.round(n.h || 0);
+					if (n.parent) meta += ' parent:' + n.parent;
+					lines.push(meta);
+				}
+			}
+
+			// Links
+			for (let i = 0; i < links.length; i++) {
+				const l = links[i];
+				let line = '    ' + l.from + ' -->';
+				if (l.label) {
+					const lbl = l.label.replace(/["|]/g, '');
+					line += '|' + lbl + '|';
+				}
+				line += ' ' + l.to;
+				lines.push(line);
+			}
+
+			// Link styles (colors) - Mermaid uses zero-based link indexes.
+			for (let i = 0; i < links.length; i++) {
+				const l = links[i];
+				if (l.color && l.color !== '#555555' && l.color !== '#555') {
+					lines.push('    linkStyle ' + i + ' stroke:' + l.color + ',color:' + l.color);
+				}
+			}
+
+			// Styles (colors) - appended after
+			for (const id in nodes) {
+				const n = nodes[id];
+				if (n.color && n.color !== '#ffffff') {
+					lines.push('    style ' + id + ' fill:' + n.color + ',stroke:#2c3e50,color:#222');
+				}
+			}
+
+			return lines.join('\n');
+		}
+
+		// === HARD ZERO-FREEZE MODEL ===
+		// The canvas (nodes + live SVG arrows) + code textarea are 100% instant and allocation-light.
+		// The "Mermaid Preview" (right side rendered diagram) is the only thing that can cause freezes.
+		//
+		// To make the whole editor "work very fast":
+		// - We NEVER start a mermaid.render while the user is interacting (dragging, typing, clicking tools).
+		// - The preview only renders when the user has been completely idle for a long time (or manually).
+		// - All live feedback comes from the direct canvas (nodes + SVG lines) + the always-up-to-date code textarea.
+		//
+		// This satisfies "live preview of mermaid visual and code" in spirit: the canvas + code are live.
+		// The expensive rendered preview is a nice-to-have that doesn't block the editor.
+
+		let mermaidInitialized = false;
+		let isRenderingMermaid = false;
+		let pendingMermaidRender = false;
+		let idleCallbackId = null;
+
+		// Global activity tracker — any user gesture cancels pending preview renders
+		let lastUserActivity = Date.now();
+
+		function markUserActivity() {
+			lastUserActivity = Date.now();
+			cancelPendingPreview();
+		}
+
+		function cancelPendingPreview() {
+			pendingMermaidRender = false;
+			if (idleCallbackId !== null) {
+				cancelIdleCallback(idleCallbackId);
+				idleCallbackId = null;
+			}
+		}
+
+		function schedulePreviewWhenIdle() {
+			cancelPendingPreview();
+			pendingMermaidRender = true;
+
+			// Only actually render when the browser is idle AND the user has been quiet for a while.
+			// Lowered quiet threshold (was 900) so that "code changed by any reason -> redraw mermaid"
+			// feels responsive after visual edits / property changes while still preventing
+			// freezes during active dragging or rapid typing.
+			idleCallbackId = requestIdleCallback(() => {
+				idleCallbackId = null;
+				if (!pendingMermaidRender) return;
+				if (Date.now() - lastUserActivity < 550) {
+					// User became active again — reschedule later
+					schedulePreviewWhenIdle();
+					return;
+				}
+				pendingMermaidRender = false;
+				performMermaidRender();
+			}, { timeout: 2200 });
+		}
+
+		function performMermaidRender() {
+			if (isRenderingMermaid) return;
+
+			ensureMermaidInitialized();
+
+			const code = generateMermaidCode();
+			mermaidCode.value = code;
+			lastGeneratedCode = code;
+
+			const container = mermaidRender;
+			container.textContent = '';
+
+			isRenderingMermaid = true;
+
+			try {
+				const renderId = 'm' + Date.now();
+				mermaid.render(renderId, code).then(result => {
+					container.innerHTML = result.svg;
+					isRenderingMermaid = false;
+				}).catch(() => {
+					container.textContent = 'Preview error';
+					isRenderingMermaid = false;
+				});
+			} catch (e) {
+				container.textContent = 'Preview error';
+				isRenderingMermaid = false;
+			}
+		}
+
+		// Call this after important structural commits (add, delete, connect, drag end, clear).
+		// It will try to render the preview ONLY when the user is idle.
+		function requestPreviewUpdate() {
+			// We do NOT render immediately. We just schedule an idle check.
+			schedulePreviewWhenIdle();
+		}
+
+		// This is the hot path for live editing — must be extremely fast and never block.
+		// Per explicit requirement:
+		//   "code changed by any reason -> redraw mermaid"
+		// Every write to the code textarea (from visual canvas edits, property changes,
+		// add/delete/connect, drag end, etc.) must cause the Mermaid preview to redraw.
+		// We always schedule the lazy path, and (for responsiveness) we also trigger
+		// an actual render quickly when the user is not in a high-activity state.
+		function updateCodeOnly() {
+			const code = generateMermaidCode();
+			mermaidCode.value = code;
+			lastGeneratedCode = code;
+
+			// "code changed by any reason -> redraw mermaid"
+			// Always schedule the lazy/idle path (preserves zero-freeze).
+			requestPreviewUpdate();
+
+			// Stronger responsiveness fix for the reported failure:
+			// After a code write (visual edit, property change, structural change, etc.),
+			// if the user is not in the middle of a fast gesture (drag or rapid typing),
+			// immediately kick off the actual Mermaid render.
+			// The activity timestamp + isRenderingMermaid guard still protect during active use.
+			const quiet = Date.now() - lastUserActivity;
+			if (quiet > 90 && !isRenderingMermaid) {
+				// Very short delay so the DOM/code write has settled, then render.
+				setTimeout(() => {
+					if (!isRenderingMermaid && (Date.now() - lastUserActivity > 50)) {
+						performMermaidRender();
+					}
+				}, 35);
+			}
+		}
+
+		// Manual "Render Now" for the right-side Mermaid visual preview.
+		// Even the manual button goes through requestIdleCallback so it never blocks the UI thread.
+		// This is the last line of defense against freeze.
+		function forceRenderPreview() {
+			cancelPendingPreview();
+			idleCallbackId = requestIdleCallback(() => {
+				idleCallbackId = null;
+				performMermaidRender();
+			}, { timeout: 800 });
+		}
+
+		// Expose for console / debugging
+		window.forceRenderPreview = forceRenderPreview;
+
+		// === Canvas zoom / pan ===
+		function updateReferenceFrameByViewportCenter(visibleW, visibleH) {
+			// Reference frame is controlled only by viewport center in world coords,
+			// so changing zoom alone does not resize the frame.
+			if (!canvas) return { w: referenceFrameWidth, h: referenceFrameHeight };
+
+			// Use the Visual Objects pane center, not the document/window center.
+			// Convert that pane-center client point back into canvas logical coordinates.
+			const paneRect = (canvasPane || canvas).getBoundingClientRect();
+			const canvasRect = canvas.getBoundingClientRect();
+			const centerClientX = paneRect.left + paneRect.width * 0.5;
+			const centerClientY = paneRect.top + paneRect.height * 0.5;
+			const centerX = (centerClientX - canvasRect.left - canvasPanX) / canvasZoom;
+			const centerY = (centerClientY - canvasRect.top - canvasPanY) / canvasZoom;
+
+			const minW = 960;
+			const minH = 540;
+
+			// If viewport center moves outside current frame, grow by powers of 2.
+			while (centerX > referenceFrameWidth || centerY > referenceFrameHeight) {
+				referenceFrameWidth *= 2;
+				referenceFrameHeight *= 2;
+			}
+
+			// If viewport center comes back into the first quarter, shrink by powers of 2.
+			while (referenceFrameWidth > minW && referenceFrameHeight > minH &&
+				   centerX < referenceFrameWidth / 4 && centerY < referenceFrameHeight / 4) {
+				referenceFrameWidth = Math.max(minW, referenceFrameWidth / 2);
+				referenceFrameHeight = Math.max(minH, referenceFrameHeight / 2);
+			}
+
+			return { w: referenceFrameWidth, h: referenceFrameHeight };
+		}
+
+		function drawCanvasGrid() {
+			if (!gridSvg || !canvas) return;
+			while (gridSvg.firstChild) gridSvg.removeChild(gridSvg.firstChild);
+
+			const rect = canvas.getBoundingClientRect();
+			const marginScreen = 80;
+			const minX = Math.floor((0 - marginScreen - canvasPanX) / canvasZoom);
+			const minY = Math.floor((0 - marginScreen - canvasPanY) / canvasZoom);
+			const maxX = Math.ceil((rect.width + marginScreen - canvasPanX) / canvasZoom);
+			const maxY = Math.ceil((rect.height + marginScreen - canvasPanY) / canvasZoom);
+			const viewW = Math.max(1, maxX - minX);
+			const viewH = Math.max(1, maxY - minY);
+
+			gridSvg.style.left = minX + 'px';
+			gridSvg.style.top = minY + 'px';
+			gridSvg.style.width = viewW + 'px';
+			gridSvg.style.height = viewH + 'px';
+			gridSvg.setAttribute('width', viewW);
+			gridSvg.setAttribute('height', viewH);
+			gridSvg.setAttribute('viewBox', minX + ' ' + minY + ' ' + viewW + ' ' + viewH);
+
+			const ns = 'http://www.w3.org/2000/svg';
+			const base = 20;
+			// Infinite grid: only draw currently visible logical range. When zoomed out,
+			// use a larger logical step so screen-space grid lines do not interfere.
+			const minScreenStep = 8;
+			let step = base;
+			while (step * canvasZoom < minScreenStep) step *= 2;
+
+			const strokeWidth = Math.max(1 / canvasZoom, 0.6);
+			const path = document.createElementNS(ns, 'path');
+			let d = '';
+			const startX = Math.floor(minX / step) * step;
+			const endX = Math.ceil(maxX / step) * step;
+			const startY = Math.floor(minY / step) * step;
+			const endY = Math.ceil(maxY / step) * step;
+			for (let x = startX; x <= endX; x += step) d += 'M' + x + ' ' + minY + 'V' + maxY;
+			for (let y = startY; y <= endY; y += step) d += 'M' + minX + ' ' + y + 'H' + maxX;
+			path.setAttribute('d', d);
+			path.setAttribute('stroke', '#cfcfcf');
+			path.setAttribute('stroke-width', strokeWidth);
+			path.setAttribute('fill', 'none');
+			path.setAttribute('vector-effect', 'non-scaling-stroke');
+			gridSvg.appendChild(path);
+
+			// Darker axes make negative/positive space easier to understand.
+			const axis = document.createElementNS(ns, 'path');
+			let ad = '';
+			if (minX <= 0 && maxX >= 0) ad += 'M0 ' + minY + 'V' + maxY;
+			if (minY <= 0 && maxY >= 0) ad += 'M' + minX + ' 0H' + maxX;
+			if (ad) {
+				axis.setAttribute('d', ad);
+				axis.setAttribute('stroke', '#9b9b9b');
+				axis.setAttribute('stroke-width', Math.max(1.2 / canvasZoom, 1));
+				axis.setAttribute('fill', 'none');
+				axis.setAttribute('vector-effect', 'non-scaling-stroke');
+				gridSvg.appendChild(axis);
+			}
+
+			// Auto reference frame at world origin. It grows/shrinks by powers of 2
+			// based on the viewport center, independent of zoom level.
+			const ref = updateReferenceFrameByViewportCenter(viewW, viewH);
+			const frame = document.createElementNS(ns, 'rect');
+			frame.setAttribute('x', '0');
+			frame.setAttribute('y', '0');
+			frame.setAttribute('width', ref.w);
+			frame.setAttribute('height', ref.h);
+			frame.setAttribute('fill', 'none');
+			frame.setAttribute('stroke', '#666');
+			frame.setAttribute('stroke-width', Math.max(1.5 / canvasZoom, 1));
+			frame.setAttribute('vector-effect', 'non-scaling-stroke');
+			gridSvg.appendChild(frame);
+
+			const frameLabel = document.createElementNS(ns, 'text');
+			frameLabel.setAttribute('x', '8');
+			frameLabel.setAttribute('y', '18');
+			frameLabel.setAttribute('fill', '#666');
+			frameLabel.setAttribute('font-size', Math.max(11 / canvasZoom, 8));
+			frameLabel.setAttribute('font-family', 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace');
+			frameLabel.setAttribute('vector-effect', 'non-scaling-stroke');
+			frameLabel.textContent = ref.w + ' × ' + ref.h;
+			gridSvg.appendChild(frameLabel);
+		}
+
+		function applyCanvasZoom() {
+			if (!canvasWorld || !canvasSpacer) return;
+			canvasWorld.style.transform = 'translate(' + canvasPanX + 'px,' + canvasPanY + 'px) scale(' + canvasZoom + ')';
+			canvasWorld.style.width = canvasBaseWidth + 'px';
+			canvasWorld.style.height = canvasBaseHeight + 'px';
+			canvasSpacer.style.width = '100%';
+			canvasSpacer.style.height = '100%';
+			drawCanvasGrid();
+		}
+
+		function ensureCanvasWorldSize(logicalW, logicalH) {
+			let changed = false;
+			if (logicalW > canvasBaseWidth) {
+				canvasBaseWidth = Math.ceil(logicalW);
+				changed = true;
+			}
+			if (logicalH > canvasBaseHeight) {
+				canvasBaseHeight = Math.ceil(logicalH);
+				changed = true;
+			}
+			if (changed) applyCanvasZoom();
+		}
+
+		function snapValue(v) {
+			return snapToGrid ? Math.round(v / snapGridSize) * snapGridSize : v;
+		}
+
+		function clientToCanvasPoint(clientX, clientY) {
+			const rect = canvas.getBoundingClientRect();
+			return {
+				x: (clientX - rect.left - canvasPanX) / canvasZoom,
+				y: (clientY - rect.top - canvasPanY) / canvasZoom
+			};
+		}
+
+		function zoomCanvasAt(clientX, clientY, factor) {
+			if (!isFinite(factor) || factor <= 0) return;
+			const oldZoom = canvasZoom;
+			const nextZoom = Math.max(0.2, Math.min(4, oldZoom * factor));
+			if (Math.abs(nextZoom - oldZoom) < 0.0001) return;
+
+			const rect = canvas.getBoundingClientRect();
+			const logicalX = (clientX - rect.left - canvasPanX) / oldZoom;
+			const logicalY = (clientY - rect.top - canvasPanY) / oldZoom;
+
+			canvasZoom = nextZoom;
+			// Keep the logical point under the cursor stable.
+			canvasPanX = (clientX - rect.left) - logicalX * nextZoom;
+			canvasPanY = (clientY - rect.top) - logicalY * nextZoom;
+			applyCanvasZoom();
+		}
+
+		function isEventOverSelectedNode(e) {
+			if (!(selected && selected.type === 'node')) return false;
+			const nodeEl = e.target && e.target.closest ? e.target.closest('.node') : null;
+			return !!(nodeEl && nodeEl.dataset && nodeEl.dataset.id === selected.id);
+		}
+
+		// === Ultra-fast SVG link handling (no full recreate on every move) ===
+		// We keep a cache of <line> elements and only mutate their attributes during drag/position changes.
+		// Full rebuild only on structural changes (add/delete/select).
+
+		function ensureArrowDefs() {
+			let defs = svg.querySelector('defs');
+			if (defs) return defs;
+
+			defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+			const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+			marker.setAttribute('id', 'arrowhead');
+			marker.setAttribute('markerWidth', '10');
+			marker.setAttribute('markerHeight', '7');
+			marker.setAttribute('refX', '9');
+			marker.setAttribute('refY', '3.5');
+			marker.setAttribute('orient', 'auto');
+			const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+			poly.setAttribute('points', '0 0, 10 3.5, 0 7');
+			poly.setAttribute('fill', '#555');
+			marker.appendChild(poly);
+			defs.appendChild(marker);
+			svg.appendChild(defs);
+			return defs;
+		}
+
+		function getArrowMarkerForColor(color) {
+			const c = color || '#555';
+			if (c === '#555' || c === '#555555') return 'url(#arrowhead)';
+
+			const defs = ensureArrowDefs();
+			const safe = c.replace(/[^a-zA-Z0-9_-]/g, '');
+			const id = 'arrowhead-' + safe;
+			if (!defs.querySelector('#' + id)) {
+				const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+				marker.setAttribute('id', id);
+				marker.setAttribute('markerWidth', '10');
+				marker.setAttribute('markerHeight', '7');
+				marker.setAttribute('refX', '9');
+				marker.setAttribute('refY', '3.5');
+				marker.setAttribute('orient', 'auto');
+				const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+				poly.setAttribute('points', '0 0, 10 3.5, 0 7');
+				poly.setAttribute('fill', c);
+				marker.appendChild(poly);
+				defs.appendChild(marker);
+			}
+			return 'url(#' + id + ')';
+		}
+
+		// Full rebuild (used for delete, clear, load, etc.)
+		function redrawLinks() {
+			const defs = ensureArrowDefs();
+			while (svg.lastChild && svg.lastChild !== defs) {
+				svg.removeChild(svg.lastChild);
+			}
+			linkElements = Object.create(null);
+			linkLabelElements = Object.create(null);
+
+			for (let i = 0; i < links.length; i++) {
+				addPermanentLinkLine(links[i]);
+			}
+		}
+
+		// Fast approximate node-boundary clipping for canvas arrows.
+		// The line is still a single SVG <line> (fast), but its endpoints are moved away
+		// from node centers so arrowheads land on/near the visual border instead of inside nodes.
+		function polygonBoundaryRadius(vertices, ux, uy) {
+			// Ray from origin: p = t * (ux, uy), t >= 0.
+			// Intersect it with every polygon edge and use nearest positive hit.
+			// This gives an exact outline hit for any convex N-gon used by canvas nodes.
+			let best = Infinity;
+			const eps = 1e-9;
+
+			for (let i = 0; i < vertices.length; i++) {
+				const a = vertices[i];
+				const b = vertices[(i + 1) % vertices.length];
+				const sx = b.x - a.x;
+				const sy = b.y - a.y;
+				const denom = ux * sy - uy * sx;
+				if (Math.abs(denom) < eps) continue;
+
+				// Solve: t * dir = a + u * segment
+				const t = (a.x * sy - a.y * sx) / denom;
+				const u = (a.x * uy - a.y * ux) / denom;
+				if (t >= 0 && u >= -eps && u <= 1 + eps && t < best) {
+					best = t;
+				}
+			}
+
+			return isFinite(best) ? best : 0;
+		}
+
+		function rectVertices(rx, ry) {
+			return [
+				{ x: -rx, y: -ry },
+				{ x:  rx, y: -ry },
+				{ x:  rx, y:  ry },
+				{ x: -rx, y:  ry }
+			];
+		}
+
+		function rotatedRectVertices(rx, ry, angleRad) {
+			const c = Math.cos(angleRad);
+			const s = Math.sin(angleRad);
+			const base = rectVertices(rx, ry);
+			for (let i = 0; i < base.length; i++) {
+				const x = base[i].x;
+				const y = base[i].y;
+				base[i] = { x: x * c - y * s, y: x * s + y * c };
+			}
+			return base;
+		}
+
+		function regularPolygonVertices(n, rx, ry, angleOffset) {
+			const out = [];
+			for (let i = 0; i < n; i++) {
+				const a = angleOffset + (Math.PI * 2 * i) / n;
+				out.push({ x: Math.cos(a) * rx, y: Math.sin(a) * ry });
+			}
+			return out;
+		}
+
+		function capsuleBoundaryRadius(w, h, ux, uy) {
+			// Exact-ish stadium/capsule intersection. Horizontal capsule when w >= h,
+			// vertical capsule otherwise. Falls back to circle for near-square nodes.
+			const rx = Math.max(1, w * 0.5);
+			const ry = Math.max(1, h * 0.5);
+			const r = Math.min(rx, ry);
+			const eps = 1e-9;
+
+			if (Math.abs(rx - ry) < 1) return r;
+
+			let best = Infinity;
+			if (rx > ry) {
+				const capCx = ux >= 0 ? (rx - r) : -(rx - r);
+				// Ray-circle intersection: |t*d - c|^2 = r^2
+				const b = -2 * (ux * capCx);
+				const c = capCx * capCx - r * r;
+				const disc = b * b - 4 * c;
+				if (disc >= 0) {
+					const t = (-b + Math.sqrt(disc)) * 0.5;
+					if (t >= 0) best = Math.min(best, t);
+				}
+				if (Math.abs(uy) > eps) {
+					const t = (uy > 0 ? r : -r) / uy;
+					const x = t * ux;
+					if (t >= 0 && x >= -(rx - r) && x <= (rx - r)) best = Math.min(best, t);
+				}
+			} else {
+				const capCy = uy >= 0 ? (ry - r) : -(ry - r);
+				const b = -2 * (uy * capCy);
+				const c = capCy * capCy - r * r;
+				const disc = b * b - 4 * c;
+				if (disc >= 0) {
+					const t = (-b + Math.sqrt(disc)) * 0.5;
+					if (t >= 0) best = Math.min(best, t);
+				}
+				if (Math.abs(ux) > eps) {
+					const t = (ux > 0 ? r : -r) / ux;
+					const y = t * uy;
+					if (t >= 0 && y >= -(ry - r) && y <= (ry - r)) best = Math.min(best, t);
+				}
+			}
+
+			return isFinite(best) ? best : r;
+		}
+
+		function nodeBoundaryRadius(el, ux, uy) {
+			const w = el.offsetWidth || 1;
+			const h = el.offsetHeight || 1;
+			const rx = Math.max(1, w * 0.5);
+			const ry = Math.max(1, h * 0.5);
+
+			// Diamond is a CSS-rotated rectangle. Use the actual rotated 4-gon outline
+			// instead of a circular safe radius, so arrowheads land on the diamond edge.
+			if (el.classList.contains('shape-diamond')) {
+				return polygonBoundaryRadius(rotatedRectVertices(rx, ry, Math.PI / 4), ux, uy);
+			}
+
+			// Circle: exact circle is fine, but using a high-resolution N-gon keeps the same
+			// outline-intersection logic and avoids special-case drift with SVG/DOM shapes.
+			if (el.classList.contains('shape-circle')) {
+				const r = Math.min(rx, ry);
+				return polygonBoundaryRadius(regularPolygonVertices(40, r, r, -Math.PI / 2), ux, uy);
+			}
+
+			// Stadium is a capsule; calculate capsule outline so endpoints are good on
+			// both straight sides and rounded caps.
+			if (el.classList.contains('shape-stadium')) {
+				return capsuleBoundaryRadius(w, h, ux, uy);
+			}
+
+			// Rounded rectangle: use a 16-gon approximation around the rectangle's bounds.
+			// This is fast and gives better corner behavior than the old ellipse fallback.
+			if (el.classList.contains('shape-round')) {
+				return polygonBoundaryRadius(regularPolygonVertices(16, rx, ry, Math.PI / 16), ux, uy);
+			}
+
+			// Plain rectangle: exact 4-gon outline.
+			return polygonBoundaryRadius(rectVertices(rx, ry), ux, uy);
+		}
+
+		function setArrowLineBetweenNodes(line, fromEl, toEl) {
+			const x1c = fromEl.offsetLeft + fromEl.offsetWidth * 0.5;
+			const y1c = fromEl.offsetTop + fromEl.offsetHeight * 0.5;
+			const x2c = toEl.offsetLeft + toEl.offsetWidth * 0.5;
+			const y2c = toEl.offsetTop + toEl.offsetHeight * 0.5;
+
+			const dx = x2c - x1c;
+			const dy = y2c - y1c;
+			const dist = Math.sqrt(dx * dx + dy * dy);
+
+			if (dist < 0.001) {
+				line.setAttribute('x1', x1c);
+				line.setAttribute('y1', y1c);
+				line.setAttribute('x2', x2c);
+				line.setAttribute('y2', y2c);
+				return;
+			}
+
+			const ux = dx / dist;
+			const uy = dy / dist;
+			const startR = nodeBoundaryRadius(fromEl, ux, uy);
+			const endR = nodeBoundaryRadius(toEl, -ux, -uy);
+
+			// If nodes overlap/are extremely close, fall back to center-to-center to avoid
+			// inverted zero-length lines. Otherwise clip both ends to visual boundaries.
+			if (dist <= startR + endR + 8) {
+				line.setAttribute('x1', x1c);
+				line.setAttribute('y1', y1c);
+				line.setAttribute('x2', x2c);
+				line.setAttribute('y2', y2c);
+				return;
+			}
+
+			line.setAttribute('x1', x1c + ux * startR);
+			line.setAttribute('y1', y1c + uy * startR);
+			line.setAttribute('x2', x2c - ux * endR);
+			line.setAttribute('y2', y2c - uy * endR);
+		}
+
+		function updateLinkLabelPosition(link, line) {
+			const label = linkLabelElements[link.id];
+			if (!label || !line) return;
+
+			const text = (link.label || '').trim();
+			if (!text) {
+				label.style.display = 'none';
+				return;
+			}
+
+			const x1 = parseFloat(line.getAttribute('x1')) || 0;
+			const y1 = parseFloat(line.getAttribute('y1')) || 0;
+			const x2 = parseFloat(line.getAttribute('x2')) || 0;
+			const y2 = parseFloat(line.getAttribute('y2')) || 0;
+			label.textContent = text;
+			label.style.display = '';
+			label.setAttribute('x', (x1 + x2) * 0.5);
+			label.setAttribute('y', (y1 + y2) * 0.5 - 6);
+			label.setAttribute('fill', link.color || '#555');
+		}
+
+		// Create and append ONE permanent SVG arrow for a link.
+		// Used both by full redraw and (importantly) by the drop handler so the arrow appears instantly.
+		function addPermanentLinkLine(link) {
+			const fromNode = nodes[link.from];
+			const toNode = nodes[link.to];
+			if (!fromNode || !fromNode.element || !toNode || !toNode.element) return;
+
+			const fromEl = fromNode.element;
+			const toEl = toNode.element;
+
+			const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+			setArrowLineBetweenNodes(line, fromEl, toEl);
+			line.setAttribute('stroke', link.color || '#555');
+			line.setAttribute('stroke-width', (selected && selected.type === 'link' && selected.id === link.id) ? '3.5' : '2');
+			line.setAttribute('marker-end', getArrowMarkerForColor(link.color || '#555'));
+			line.setAttribute('data-id', link.id);
+			line.style.pointerEvents = 'stroke';
+
+			line.addEventListener('click', (e) => {
+				e.stopPropagation();
+				if (currentMode === 'delete') {
+					deleteLink(link.id);
+				} else {
+					selectLink(link.id);
+				}
+			});
+
+			line.addEventListener('mouseenter', () => {
+				if (!(selected && selected.type === 'link' && selected.id === link.id)) {
+					line.setAttribute('stroke-width', '3');
+				}
+			});
+			line.addEventListener('mouseleave', () => {
+				if (!(selected && selected.type === 'link' && selected.id === link.id)) {
+					line.setAttribute('stroke-width', '2');
+				}
+			});
+
+			const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+			label.setAttribute('data-id', link.id);
+			label.setAttribute('text-anchor', 'middle');
+			label.setAttribute('font-size', '12');
+			label.setAttribute('font-weight', '600');
+			label.setAttribute('paint-order', 'stroke');
+			label.setAttribute('stroke', '#fff');
+			label.setAttribute('stroke-width', '4');
+			label.setAttribute('stroke-linejoin', 'round');
+			label.style.cursor = 'pointer';
+			label.style.userSelect = 'none';
+			label.style.pointerEvents = 'all';
+			label.addEventListener('click', (e) => {
+				e.stopPropagation();
+				if (currentMode === 'delete') deleteLink(link.id);
+				else selectLink(link.id);
+			});
+
+			svg.appendChild(line);
+			svg.appendChild(label);
+			linkElements[link.id] = line;
+			linkLabelElements[link.id] = label;
+			updateLinkLabelPosition(link, line);
+		}
+
+		// Extremely cheap: only mutate attributes on existing lines. Called every frame during drag.
+		function updateLinkPositions() {
+			for (let i = 0; i < links.length; i++) {
+				const link = links[i];
+				const line = linkElements[link.id];
+				if (!line) continue;
+
+				const fromNode = nodes[link.from];
+				const toNode = nodes[link.to];
+				if (!fromNode || !fromNode.element || !toNode || !toNode.element) continue;
+
+				const fromEl = fromNode.element;
+				const toEl = toNode.element;
+
+				// Direct attribute mutation — zero DOM insert/remove; endpoint math is cheap.
+				setArrowLineBetweenNodes(line, fromEl, toEl);
+				updateLinkLabelPosition(link, line);
+			}
+		}
+
+		function applyNodeSize(node) {
+			if (!node || !node.element) return;
+			const el = node.element;
+
+			let w = parseInt(node.w, 10);
+			let h = parseInt(node.h, 10);
+
+			if (node.shape === 'circle') {
+				// For circles, W is intentionally treated as radius. H is ignored.
+				const r = Math.max(10, w || 36);
+				const d = r * 2;
+				node.w = r;
+				node.h = r;
+				el.style.width = d + 'px';
+				el.style.height = d + 'px';
+				el.style.minWidth = d + 'px';
+				el.style.minHeight = d + 'px';
+			} else {
+				w = Math.max(24, w || 90);
+				h = Math.max(24, h || 36);
+				node.w = w;
+				node.h = h;
+				el.style.width = w + 'px';
+				el.style.height = h + 'px';
+				el.style.minWidth = w + 'px';
+				el.style.minHeight = h + 'px';
+			}
+
+			const lbl = el.querySelector('.node-label');
+			if (lbl) {
+				lbl.style.maxWidth = (node.shape === 'circle' ? Math.max(20, (node.w * 2) - 16) : Math.max(20, node.w - 16)) + 'px';
+			}
+		}
+
+		function getNodeVisualSize(node) {
+			if (!node) return { w: 0, h: 0 };
+			if (node.shape === 'circle') {
+				const r = Math.max(10, parseInt(node.w, 10) || 36);
+				return { w: r * 2, h: r * 2 };
+			}
+			return {
+				w: Math.max(24, parseInt(node.w, 10) || 90),
+				h: Math.max(24, parseInt(node.h, 10) || 36)
+			};
+		}
+
+		function getNodeDepth(node) {
+			let depth = 0;
+			let p = node && node.parent;
+			const seen = Object.create(null);
+			while (p && nodes[p] && !seen[p] && depth < 100) {
+				seen[p] = true;
+				depth++;
+				p = nodes[p].parent;
+			}
+			return depth;
+		}
+
+		function applyHierarchyZ() {
+			for (const id in nodes) {
+				const n = nodes[id];
+				if (!n.children) n.children = [];
+				// Use even z-index levels for nodes so the shared link layer (z=3)
+				// can sit above root/parent nodes (z=2) while children are above links (z=4+).
+				const z = 2 + getNodeDepth(n) * 2;
+				n.zIndex = z;
+				if (n.element) n.element.style.zIndex = String(z);
+			}
+		}
+
+		function removeChildId(parentNode, childId) {
+			if (!parentNode || !parentNode.children) return;
+			for (let i = parentNode.children.length - 1; i >= 0; i--) {
+				if (parentNode.children[i] === childId) parentNode.children.splice(i, 1);
+			}
+		}
+
+		function isDescendantNode(candidateId, possibleAncestorId) {
+			let cur = nodes[candidateId];
+			const seen = Object.create(null);
+			while (cur && cur.parent && !seen[cur.parent]) {
+				if (cur.parent === possibleAncestorId) return true;
+				seen[cur.parent] = true;
+				cur = nodes[cur.parent];
+			}
+			return false;
+		}
+
+		function collectDescendantIds(rootId, out, seen) {
+			out = out || [];
+			seen = seen || Object.create(null);
+			if (!rootId || seen[rootId] || !nodes[rootId]) return out;
+			seen[rootId] = true;
+
+			const kids = nodes[rootId].children || [];
+			for (let i = 0; i < kids.length; i++) {
+				const childId = kids[i];
+				if (!nodes[childId] || seen[childId]) continue;
+				out.push(childId);
+				collectDescendantIds(childId, out, seen);
+			}
+			return out;
+		}
+
+
+		function getSelectedNodeIds() {
+			if (!selected) return [];
+			if (selected.type === 'node') return [selected.id];
+			if (selected.type === 'multi') return (selected.ids || []).filter(id => !!nodes[id]);
+			return [];
+		}
+
+		function isNodeSelectedForMove(id) {
+			if (!selected) return false;
+			if (selected.type === 'node') return selected.id === id;
+			if (selected.type === 'multi') return (selected.ids || []).includes(id);
+			return false;
+		}
+
+		function snapshotMoveSetForSelection(primaryId) {
+			const ids = isNodeSelectedForMove(primaryId) ? getSelectedNodeIds() : [primaryId];
+			const seen = Object.create(null);
+			const list = [];
+
+			function add(id) {
+				if (!nodes[id] || seen[id]) return;
+				seen[id] = true;
+				list.push({ node: nodes[id], left: nodes[id].left, top: nodes[id].top, direct: ids.includes(id) });
+				const kids = collectDescendantIds(id);
+				for (let i = 0; i < kids.length; i++) add(kids[i]);
+			}
+
+			for (let i = 0; i < ids.length; i++) add(ids[i]);
+			return list;
+		}
+
+		function moveSnapshotByDelta(snapshot, dx, dy) {
+			for (let i = 0; i < snapshot.length; i++) {
+				const item = snapshot[i];
+				setNodePosition(item.node, item.left + dx, item.top + dy);
+				ensureCanvasWorldSize(item.node.left + 220, item.node.top + 160);
+			}
+		}
+
+		function setNodePosition(node, left, top) {
+			if (!node) return;
+			node.left = left;
+			node.top = top;
+			if (node.element) {
+				node.element.style.left = left + 'px';
+				node.element.style.top = top + 'px';
+			}
+		}
+
+
+		function setNodeParent(node, parentId) {
+			if (!node) return;
+			if (parentId === node.id) parentId = null;
+			if (parentId && isDescendantNode(parentId, node.id)) parentId = null; // prevent cycles
+			if (node.parent === parentId) return;
+
+			if (node.parent && nodes[node.parent]) {
+				removeChildId(nodes[node.parent], node.id);
+			}
+
+			node.parent = parentId || null;
+
+			if (node.parent && nodes[node.parent]) {
+				const p = nodes[node.parent];
+				if (!p.children) p.children = [];
+				if (!p.children.includes(node.id)) p.children.push(node.id);
+			}
+
+			applyHierarchyZ();
+		}
+
+		function getNodeCenter(node) {
+			const size = getNodeVisualSize(node);
+			return { x: node.left + size.w * 0.5, y: node.top + size.h * 0.5 };
+		}
+
+		function pointInsideNodeShape(x, y, node) {
+			if (!node) return false;
+			const size = getNodeVisualSize(node);
+			const left = node.left;
+			const top = node.top;
+			const w = size.w;
+			const h = size.h;
+			if (x < left || x > left + w || y < top || y > top + h) return false;
+
+			const cx = left + w * 0.5;
+			const cy = top + h * 0.5;
+			const dx = x - cx;
+			const dy = y - cy;
+
+			if (node.shape === 'circle') {
+				const r = Math.min(w, h) * 0.5;
+				return dx * dx + dy * dy <= r * r;
+			}
+			if (node.shape === 'diamond') {
+				return (Math.abs(dx) / Math.max(1, w * 0.5) + Math.abs(dy) / Math.max(1, h * 0.5)) <= 1;
+			}
+			return true;
+		}
+
+		function findParentForNodeByCenter(node) {
+			if (!node) return null;
+			const c = getNodeCenter(node);
+			let best = null;
+			let bestDepth = -1;
+			let bestArea = Infinity;
+
+			for (const id in nodes) {
+				if (id === node.id) continue;
+				if (isDescendantNode(id, node.id)) continue; // cannot become child of its own child
+				const candidate = nodes[id];
+				if (!pointInsideNodeShape(c.x, c.y, candidate)) continue;
+				const depth = getNodeDepth(candidate);
+				const sz = getNodeVisualSize(candidate);
+				const area = sz.w * sz.h;
+				if (depth > bestDepth || (depth === bestDepth && area < bestArea)) {
+					best = candidate;
+					bestDepth = depth;
+					bestArea = area;
+				}
+			}
+			return best ? best.id : null;
+		}
+
+		function updateHierarchyForNode(node) {
+			setNodeParent(node, findParentForNodeByCenter(node));
+		}
+
+		function detachNodeHierarchy(id) {
+			const node = nodes[id];
+			if (!node) return;
+			if (node.parent && nodes[node.parent]) removeChildId(nodes[node.parent], id);
+			const kids = (node.children || []).slice();
+			for (let i = 0; i < kids.length; i++) {
+				if (nodes[kids[i]]) nodes[kids[i]].parent = null;
+			}
+			node.children = [];
+			node.parent = null;
+			applyHierarchyZ();
+		}
+
+		function updateSelectedSizeInputs(node) {
+			if (!propContent || !node) return;
+			const wInp = propContent.querySelector('input[data-size-key="w"]');
+			const hInp = propContent.querySelector('input[data-size-key="h"]');
+			if (wInp) wInp.value = node.w;
+			if (hInp) hInp.value = node.h;
+		}
+
+		function scaleNodeFromCenter(node, factor) {
+			if (!node || !node.element || !isFinite(factor) || factor <= 0) return;
+
+			const before = getNodeVisualSize(node);
+
+			if (node.shape === 'circle') {
+				// Circle W is radius. H follows W.
+				const r = Math.max(10, Math.round((parseInt(node.w, 10) || 36) * factor));
+				node.w = r;
+				node.h = r;
+			} else {
+				node.w = Math.max(24, Math.round((parseInt(node.w, 10) || 90) * factor));
+				node.h = Math.max(24, Math.round((parseInt(node.h, 10) || 36) * factor));
+			}
+
+			const after = getNodeVisualSize(node);
+
+			// Keep the object visually centered while scaling.
+			setNodePosition(node, node.left + (before.w - after.w) * 0.5, node.top + (before.h - after.h) * 0.5);
+
+			applyNodeSize(node);
+			updateSelectedSizeInputs(node);
+			redrawLinks();
+			refreshLive();
+		}
+
+		function isSelectionMode() {
+			return currentMode === 'select' || currentMode === 'universal';
+		}
+
+
+		// === Node creation (fast DOM) ===
+		function createNodeElement(node) {
+			const el = document.createElement('div');
+			el.className = 'node shape-' + node.shape;
+			el.dataset.id = node.id;
+			el.style.left = node.left + 'px';
+			el.style.top = node.top + 'px';
+			el.style.backgroundColor = node.color || '#ffffff';
+			if (!node.children) node.children = [];
+
+			const labelEl = document.createElement('div');
+			labelEl.className = 'node-label';
+			labelEl.textContent = node.label;
+			el.appendChild(labelEl);
+
+			// Link creation handle
+			const handle = document.createElement('div');
+			handle.className = 'link-handle';
+			handle.textContent = '+';
+			el.appendChild(handle);
+
+			// Clone handle: visually similar to link handle, but creates a duplicate node.
+			const cloneHandle = document.createElement('div');
+			cloneHandle.className = 'clone-handle';
+			cloneHandle.textContent = '⧉';
+			cloneHandle.title = 'Clone node';
+			el.appendChild(cloneHandle);
+
+			applyNodeSize(node);
+
+			// Wheel over the SELECTED object scales W/H by 30%.
+			// Ctrl/trackpad pinch uses a smoother factor so zoom gestures do not jump wildly.
+			el.addEventListener('wheel', function(e) {
+				if (!(selected && selected.type === 'node' && selected.id === node.id)) return;
+				e.preventDefault();
+				e.stopPropagation();
+
+				let factor;
+				if (e.ctrlKey || Math.abs(e.deltaY) < 10) {
+					// Browser pinch gestures commonly arrive as ctrl+wheel with many small deltas.
+					factor = Math.exp(-e.deltaY * 0.01);
+					factor = Math.max(0.7, Math.min(1.3, factor));
+				} else {
+					factor = e.deltaY < 0 ? 1.3 : 0.7;
+				}
+				scaleNodeFromCenter(node, factor);
+			}, { passive: false });
+
+			// Safari-style pinch gesture support, when available.
+			let gestureLastScale = 1;
+			el.addEventListener('gesturestart', function(e) {
+				if (!(selected && selected.type === 'node' && selected.id === node.id)) return;
+				e.preventDefault();
+				gestureLastScale = e.scale || 1;
+			});
+			el.addEventListener('gesturechange', function(e) {
+				if (!(selected && selected.type === 'node' && selected.id === node.id)) return;
+				e.preventDefault();
+				const currentScale = e.scale || 1;
+				const factor = Math.max(0.7, Math.min(1.3, currentScale / gestureLastScale));
+				gestureLastScale = currentScale;
+				scaleNodeFromCenter(node, factor);
+			});
+
+			// === Events (no allocations in hot path) ===
+			// Body drag for move
+			el.addEventListener('mousedown', function(e) {
+				if (e.button !== 0) return;
+				if (e.target === handle || e.target === cloneHandle) return;
+				if (isSelectionMode()) {
+					if (e.ctrlKey || e.metaKey) {
+						e.preventDefault();
+						e.stopPropagation();
+						const clone = cloneNode(node, 0, 0, false);
+						selectNode(clone.id);
+						startNodeDrag(e, clone, clone.element);
+					} else {
+						startNodeDrag(e, node, el);
+					}
+				}
+			});
+
+			// Click for select / delete
+			el.addEventListener('click', function(e) {
+				if (e.target === handle || e.target === cloneHandle) return;
+				if (performance.now() < suppressNodeClickUntil) {
+					e.preventDefault();
+					e.stopPropagation();
+					return;
+				}
+				e.stopPropagation();
+				if (currentMode === 'add') {
+					const p = clientToCanvasPoint(e.clientX, e.clientY);
+					spawnNode(p.x, p.y);
+				} else if (currentMode === 'delete') {
+					deleteNode(node.id);
+				} else if (isSelectionMode()) {
+					selectNode(node.id);
+					// Make sure links are visible (in case user clicked after a drop)
+					if (Object.keys(linkElements).length !== links.length) {
+						redrawLinks();
+					}
+				}
+			});
+
+			// Link handle
+			handle.addEventListener('mousedown', function(e) {
+				if (e.button !== 0) return;
+				e.stopPropagation();
+				if (isSelectionMode()) {
+					startLinkDrag(e, node.id);
+				}
+			});
+
+			// Clone handle: click/drag to clone, then immediately drag the clone.
+			cloneHandle.addEventListener('mousedown', function(e) {
+				if (e.button !== 0) return;
+				e.preventDefault();
+				e.stopPropagation();
+				if (isSelectionMode()) {
+					const clone = cloneNode(node, 18, 18, false);
+					selectNode(clone.id);
+					startNodeDrag(e, clone, clone.element);
+				}
+			});
+
+			// Double-click quick label edit
+			el.addEventListener('dblclick', function(e) {
+				e.stopPropagation();
+				if (isSelectionMode()) {
+					selectNode(node.id);
+					const input = document.createElement('input');
+					input.type = 'text';
+					input.value = node.label;
+					input.style.position = 'absolute';
+					input.style.left = '0';
+					input.style.top = '0';
+					input.style.width = '100%';
+					input.style.height = '100%';
+					input.style.border = '1px solid #3498db';
+					input.style.fontSize = '13px';
+					input.style.padding = '4px';
+					input.style.zIndex = '20';
+					el.appendChild(input);
+					input.focus();
+					input.select();
+
+					const finish = function() {
+						if (input.parentNode) input.parentNode.removeChild(input);
+						node.label = input.value.trim() || 'Node';
+						labelEl.textContent = node.label;
+						refreshLive();
+					};
+					input.addEventListener('blur', finish);
+					input.addEventListener('keydown', function(ev) {
+						if (ev.key === 'Enter') finish();
+						if (ev.key === 'Escape') {
+							if (input.parentNode) input.parentNode.removeChild(input);
+						}
+					});
+				}
+			});
+
+			canvasWorld.appendChild(el);
+			node.element = el;
+			applyHierarchyZ();
+			return el;
+		}
+
+		// === Node drag ===
+		function startNodeDrag(e, node, el) {
+			const rect = canvas.getBoundingClientRect();
+			const startX = e.clientX;
+			const startY = e.clientY;
+			const origLeft = node.left;
+			const origTop = node.top;
+			const moveSnapshot = snapshotMoveSetForSelection(node.id);
+
+			dragState = {
+				node: node,
+				el: el,
+				startX: startX,
+				startY: startY,
+				origLeft: origLeft,
+				origTop: origTop,
+				moveSnapshot: moveSnapshot,
+				moved: false
+			};
+
+			function onMove(ev) {
+				if (!dragState) return;
+				const rawDx = ev.clientX - dragState.startX;
+				const rawDy = ev.clientY - dragState.startY;
+				if (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3) dragState.moved = true;
+				const dx = rawDx / canvasZoom;
+				const dy = rawDy / canvasZoom;
+
+				let newLeft = dragState.origLeft + dx;
+				let newTop = dragState.origTop + dy;
+				newLeft = snapValue(newLeft);
+				newTop = snapValue(newTop);
+
+				const actualDx = newLeft - dragState.origLeft;
+				const actualDy = newTop - dragState.origTop;
+				moveSnapshotByDelta(dragState.moveSnapshot || [], actualDx, actualDy);
+
+				// ULTRA FAST: only mutate SVG line attributes directly. Zero DOM creation, zero string work.
+				updateLinkPositions();
+
+				// Mark activity so preview never starts during drag
+				markUserActivity();
+
+				// Do NOT touch code textarea or schedule mermaid during drag — this is what keeps it very fast / 60fps
+			}
+
+			function onUp() {
+				document.removeEventListener('mousemove', onMove);
+				document.removeEventListener('mouseup', onUp);
+				if (dragState) {
+					if (dragState.moved) {
+						// A real mouse drag is followed by a browser click event. Suppress only
+						// after actual movement; otherwise normal single-click selection must work.
+						suppressCanvasAddUntil = performance.now() + 300;
+						suppressNodeClickUntil = performance.now() + 300;
+
+						// Re-parent only directly moved selected roots after movement ends.
+						// Children moved because their parent moved keep their parent. Resize does not recalculate hierarchy.
+						const directIds = isNodeSelectedForMove(dragState.node.id) ? getSelectedNodeIds() : [dragState.node.id];
+						for (let i = 0; i < directIds.length; i++) {
+							if (nodes[directIds[i]]) updateHierarchyForNode(nodes[directIds[i]]);
+						}
+						if (dragState.node) dragState.node._pendingCloneCommit = false;
+						// One-time rebuild of link cache + full update after drag ends
+						redrawLinks();
+						updateAll();         // this will schedule the (debounced) mermaid render once
+					} else if (dragState.node && dragState.node._pendingCloneCommit) {
+						// Ctrl-click / clone-handle click without moving still creates the clone.
+						dragState.node._pendingCloneCommit = false;
+						suppressNodeClickUntil = performance.now() + 300;
+						updateHierarchyForNode(dragState.node);
+						updateAll();
+					}
+					dragState = null;
+				}
+			}
+
+			document.addEventListener('mousemove', onMove);
+			document.addEventListener('mouseup', onUp, { once: true });
+		}
+
+		// === Link drag from handle ===
+		function startLinkDrag(e, fromId) {
+			const fromEl = nodes[fromId].element;
+			if (!fromEl) return;
+
+			const canvasRect = canvas.getBoundingClientRect();
+
+			const tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+			tempLine.setAttribute('stroke', '#3498db');
+			tempLine.setAttribute('stroke-width', '2.5');
+			tempLine.setAttribute('stroke-dasharray', '4 3');
+			svg.appendChild(tempLine);
+
+			linkDrag = {
+				fromId: fromId,
+				tempLine: tempLine
+			};
+
+			function updateTemp(ev) {
+				if (!linkDrag) return;
+				const x1c = fromEl.offsetLeft + fromEl.offsetWidth * 0.5;
+				const y1c = fromEl.offsetTop + fromEl.offsetHeight * 0.5;
+				const p = clientToCanvasPoint(ev.clientX, ev.clientY);
+				const x2 = p.x;
+				const y2 = p.y;
+				const dx = x2 - x1c;
+				const dy = y2 - y1c;
+				const dist = Math.sqrt(dx * dx + dy * dy);
+
+				if (dist > 0.001) {
+					const ux = dx / dist;
+					const uy = dy / dist;
+					const startR = nodeBoundaryRadius(fromEl, ux, uy);
+					tempLine.setAttribute('x1', x1c + ux * startR);
+					tempLine.setAttribute('y1', y1c + uy * startR);
+				} else {
+					tempLine.setAttribute('x1', x1c);
+					tempLine.setAttribute('y1', y1c);
+				}
+				tempLine.setAttribute('x2', x2);
+				tempLine.setAttribute('y2', y2);
+			}
+
+			function onMove(ev) {
+				updateTemp(ev);
+			}
+
+			function onUp(ev) {
+				document.removeEventListener('mousemove', onMove);
+				document.removeEventListener('mouseup', onUp);
+
+				if (linkDrag && linkDrag.tempLine && linkDrag.tempLine.parentNode) {
+					linkDrag.tempLine.parentNode.removeChild(linkDrag.tempLine);
+				}
+
+				// Hit test for target node
+				const dropPoint = clientToCanvasPoint(ev.clientX, ev.clientY);
+				const mx = dropPoint.x;
+				const my = dropPoint.y;
+
+				let toId = null;
+				for (const id in nodes) {
+					if (id === linkDrag.fromId) continue;
+					const nEl = nodes[id].element;
+					if (!nEl) continue;
+
+					const lx = nEl.offsetLeft;
+					const ly = nEl.offsetTop;
+					if (mx >= lx && mx <= lx + nEl.offsetWidth &&
+						my >= ly && my <= ly + nEl.offsetHeight) {
+						toId = id;
+						break;
+					}
+				}
+
+				if (toId) {
+					const linkId = 'L' + (nextLinkId++);
+					const newLink = {
+						id: linkId,
+						from: linkDrag.fromId,
+						to: toId,
+						label: '',
+						color: '#555555'
+					};
+					links.push(newLink);
+
+					// === THE FIX ===
+					// Directly add the permanent SVG arrow for the new link using the helper.
+					// This makes the connecting line appear *immediately* the moment the user drops
+					// (mouse button released), with correct current node positions.
+					// No longer invisible until you drag a node.
+					addPermanentLinkLine(newLink);
+
+					selectLink(linkId);
+					updateHighlights();   // give the freshly added arrow the selected (thicker) style right away
+					updateCodeOnly();
+				}
+
+				// The browser fires a normal click after mouseup. In Universal mode that
+				// click can bubble to the empty canvas/SVG and accidentally spawn a node.
+				// Suppress empty-canvas add clicks briefly after every link-drag completion.
+				suppressCanvasAddUntil = performance.now() + 300;
+
+				linkDrag = null;
+			}
+
+			updateTemp(e);
+			document.addEventListener('mousemove', onMove);
+			document.addEventListener('mouseup', onUp, { once: true });
+		}
+
+		// === Color helpers ===
+		function clamp01(v) {
+			return Math.max(0, Math.min(1, v));
+		}
+
+		function hexToRgb(hex) {
+			hex = String(hex || '#e8f4fc').trim();
+			if (hex[0] === '#') hex = hex.slice(1);
+			if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
+			const n = parseInt(hex, 16);
+			if (!isFinite(n)) return { r: 232, g: 244, b: 252 };
+			return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+		}
+
+		function rgbToHex(r, g, b) {
+			const toHex = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+			return '#' + toHex(r) + toHex(g) + toHex(b);
+		}
+
+		function rgbToHsl(r, g, b) {
+			r /= 255; g /= 255; b /= 255;
+			const max = Math.max(r, g, b);
+			const min = Math.min(r, g, b);
+			let h = 0;
+			let s = 0;
+			const l = (max + min) / 2;
+
+			if (max !== min) {
+				const d = max - min;
+				s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+				if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+				else if (max === g) h = (b - r) / d + 2;
+				else h = (r - g) / d + 4;
+				h *= 60;
+			}
+			return { h: ((h % 360) + 360) % 360, s: s, l: l };
+		}
+
+		function hslToRgb(h, s, l) {
+			h = (((h % 360) + 360) % 360) / 360;
+			s = clamp01(s);
+			l = clamp01(l);
+
+			if (s === 0) {
+				const v = l * 255;
+				return { r: v, g: v, b: v };
+			}
+
+			const hue2rgb = (p, q, t) => {
+				if (t < 0) t += 1;
+				if (t > 1) t -= 1;
+				if (t < 1 / 6) return p + (q - p) * 6 * t;
+				if (t < 1 / 2) return q;
+				if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+				return p;
+			};
+
+			const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+			const p = 2 * l - q;
+			return {
+				r: hue2rgb(p, q, h + 1 / 3) * 255,
+				g: hue2rgb(p, q, h) * 255,
+				b: hue2rgb(p, q, h - 1 / 3) * 255
+			};
+		}
+
+		function getNodeHsl(node) {
+			if (!node) return { h: 0, s: 0.7, l: 0.85 };
+			if (node.hsl && node.hsl.source === node.color) {
+				return { h: node.hsl.h, s: node.hsl.s, l: node.hsl.l };
+			}
+			const rgb = hexToRgb(node.color || '#e8f4fc');
+			const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+			// If color is near grayscale, give it useful saturation for colorize.
+			if (hsl.s < 0.08) hsl.s = 0.65;
+			if (hsl.l < 0.18 || hsl.l > 0.92) hsl.l = 0.82;
+			node.hsl = { h: hsl.h, s: hsl.s, l: hsl.l, source: node.color };
+			return hsl;
+		}
+
+		function setNodeHslColor(node, h, s, l) {
+			if (!node) return;
+			const rgb = hslToRgb(h, s, l);
+			const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+			node.color = hex;
+			node.hsl = { h: ((h % 360) + 360) % 360, s: s, l: l, source: hex };
+			if (node.element) node.element.style.backgroundColor = hex;
+		}
+
+		function colorizeSelected() {
+			let ids = getSelectedNodeIds();
+			if (!ids.length && selected && selected.type === 'node') ids = [selected.id];
+			ids = ids.filter(id => !!nodes[id]);
+			if (!ids.length) return;
+
+			if (ids.length === 1) {
+				const node = nodes[ids[0]];
+				const hsl = getNodeHsl(node);
+				setNodeHslColor(node, Math.random() * 360, hsl.s || 0.65, hsl.l || 0.82);
+			} else {
+				const base = getNodeHsl(nodes[ids[0]]).h || 0;
+				const step = 360 / ids.length;
+				for (let i = 0; i < ids.length; i++) {
+					const node = nodes[ids[i]];
+					const hsl = getNodeHsl(node);
+					// Preserve each node's saturation/lightness, change only hue.
+					setNodeHslColor(node, base + step * i, hsl.s || 0.65, hsl.l || 0.82);
+				}
+			}
+
+			updateSelectionUI();
+			redrawLinks();
+			refreshLive();
+		}
+
+		window.colorizeSelected = colorizeSelected;
+
+		// === Selection ===
+		function selectNode(id) {
+			selected = { type: 'node', id: id };
+			updateSelectionUI();
+			updateHighlights();
+		}
+
+		function selectLink(id) {
+			selected = { type: 'link', id: id };
+			updateSelectionUI();
+			updateHighlights();
+		}
+
+		function selectMultipleNodes(ids) {
+			ids = (ids || []).filter(id => !!nodes[id]);
+			if (ids.length === 0) {
+				deselect();
+				return;
+			}
+			if (ids.length === 1) {
+				selectNode(ids[0]);
+				return;
+			}
+			selected = { type: 'multi', ids: ids };
+			updateSelectionUI();
+			updateHighlights();
+		}
+
+		function deselect() {
+			selected = null;
+			updateSelectionUI();
+			updateHighlights();
+		}
+
+		function updateHighlights() {
+			// Clear previous
+			const allNodes = canvas.querySelectorAll('.node');
+			for (let i = 0; i < allNodes.length; i++) {
+				allNodes[i].classList.remove('selected');
+			}
+
+			const allLines = svg.querySelectorAll('line');
+			for (let i = 0; i < allLines.length; i++) {
+				allLines[i].setAttribute('stroke-width', '2');
+				allLines[i].classList.remove('selected');
+			}
+			const allLabels = svg.querySelectorAll('text');
+			for (let i = 0; i < allLabels.length; i++) {
+				allLabels[i].setAttribute('font-size', '12');
+			}
+
+			if (!selected) return;
+
+			if (selected.type === 'node') {
+				const node = nodes[selected.id];
+				if (node && node.element) {
+					node.element.classList.add('selected');
+				}
+			} else if (selected.type === 'multi') {
+				const ids = selected.ids || [];
+				for (let i = 0; i < ids.length; i++) {
+					const node = nodes[ids[i]];
+					if (node && node.element) node.element.classList.add('selected');
+				}
+			} else if (selected.type === 'link') {
+				const line = svg.querySelector('line[data-id="' + selected.id + '"]');
+				if (line) {
+					line.setAttribute('stroke-width', '3.5');
+					line.classList.add('selected');
+				}
+				const label = linkLabelElements[selected.id];
+				if (label) label.setAttribute('font-size', '13');
+			}
+		}
+
+		function isValidObjectId(id) {
+			return /^[A-Za-z0-9_]+$/.test(id || '');
+		}
+
+		function changeNodeId(oldId, newId) {
+			newId = (newId || '').trim();
+			if (newId === oldId) return true;
+			if (!isValidObjectId(newId)) {
+				alert('Invalid node id. Use only letters, numbers, and underscore.');
+				return false;
+			}
+			if (nodes[newId]) {
+				alert('Node id must be unique.');
+				return false;
+			}
+
+			const node = nodes[oldId];
+			if (!node) return false;
+
+			delete nodes[oldId];
+			node.id = newId;
+			nodes[newId] = node;
+			if (node.element) node.element.dataset.id = newId;
+
+			// Update link endpoints.
+			for (let i = 0; i < links.length; i++) {
+				if (links[i].from === oldId) links[i].from = newId;
+				if (links[i].to === oldId) links[i].to = newId;
+			}
+
+			// Update hierarchy references.
+			for (const id in nodes) {
+				const n = nodes[id];
+				if (n.parent === oldId) n.parent = newId;
+				if (n.children) {
+					for (let i = 0; i < n.children.length; i++) {
+						if (n.children[i] === oldId) n.children[i] = newId;
+					}
+				}
+			}
+
+			if (selected && selected.type === 'node' && selected.id === oldId) selected.id = newId;
+			if (selected && selected.type === 'multi' && selected.ids) {
+				for (let i = 0; i < selected.ids.length; i++) if (selected.ids[i] === oldId) selected.ids[i] = newId;
+			}
+
+			// Keep auto-created ids from colliding when user renames to N<number>.
+			const m = newId.match(/^N(\d+)$/);
+			if (m) nextNodeId = Math.max(nextNodeId, parseInt(m[1], 10) + 1);
+
+			updateAll();
+			updateSelectionUI();
+			return true;
+		}
+
+		function changeLinkId(oldId, newId) {
+			newId = (newId || '').trim();
+			if (newId === oldId) return true;
+			if (!isValidObjectId(newId)) {
+				alert('Invalid link id. Use only letters, numbers, and underscore.');
+				return false;
+			}
+			for (let i = 0; i < links.length; i++) {
+				if (links[i].id === newId) {
+					alert('Link id must be unique.');
+					return false;
+				}
+			}
+
+			const link = links.find(l => l.id === oldId);
+			if (!link) return false;
+			link.id = newId;
+
+			if (linkElements[oldId]) {
+				linkElements[newId] = linkElements[oldId];
+				linkElements[newId].setAttribute('data-id', newId);
+				delete linkElements[oldId];
+			}
+			if (linkLabelElements[oldId]) {
+				linkLabelElements[newId] = linkLabelElements[oldId];
+				linkLabelElements[newId].setAttribute('data-id', newId);
+				delete linkLabelElements[oldId];
+			}
+			if (selected && selected.type === 'link' && selected.id === oldId) selected.id = newId;
+
+			const m = newId.match(/^L(\d+)$/);
+			if (m) nextLinkId = Math.max(nextLinkId, parseInt(m[1], 10) + 1);
+
+			updateAll();
+			updateSelectionUI();
+			return true;
+		}
+
+		function commonNodeValue(list, key) {
+			if (!list.length) return undefined;
+			const first = list[0][key] == null ? '' : String(list[0][key]);
+			for (let i = 1; i < list.length; i++) {
+				if ((list[i][key] == null ? '' : String(list[i][key])) !== first) return undefined;
+			}
+			return first;
+		}
+
+		function applyToSelectedNodes(mutator) {
+			const list = getSelectedNodeIds().map(id => nodes[id]).filter(Boolean);
+			for (let i = 0; i < list.length; i++) mutator(list[i]);
+			redrawLinks();
+			renderTemplateParentOptions();
+			refreshLive();
+			updateHighlights();
+		}
+
+		function renderMultiNodeProperties() {
+			const list = getSelectedNodeIds().map(id => nodes[id]).filter(Boolean);
+			if (!list.length) return;
+
+			const title = document.createElement('div');
+			title.className = 'empty-state';
+			title.style.minHeight = '0';
+			title.style.padding = '2px 0 6px';
+			title.textContent = list.length + ' nodes selected';
+			propContent.appendChild(title);
+
+			const idInfo = document.createElement('div');
+			idInfo.className = 'prop-row';
+			const idLab = document.createElement('label');
+			idLab.textContent = 'IDs';
+			const idText = document.createElement('input');
+			idText.type = 'text';
+			idText.value = list.map(n => n.id).join(', ');
+			idText.disabled = true;
+			idInfo.appendChild(idLab);
+			idInfo.appendChild(idText);
+			propContent.appendChild(idInfo);
+
+			const labelRow = document.createElement('div');
+			labelRow.className = 'prop-row';
+			const labelLab = document.createElement('label');
+			labelLab.textContent = 'Label';
+			const labelInp = document.createElement('input');
+			labelInp.type = 'text';
+			const cvLabel = commonNodeValue(list, 'label');
+			if (cvLabel !== undefined) labelInp.value = cvLabel; else labelInp.placeholder = '(mixed)';
+			labelInp.addEventListener('input', () => applyToSelectedNodes(n => {
+				n.label = labelInp.value || 'Node';
+				const lbl = n.element && n.element.querySelector('.node-label');
+				if (lbl) lbl.textContent = n.label;
+			}));
+			labelRow.appendChild(labelLab);
+			labelRow.appendChild(labelInp);
+			propContent.appendChild(labelRow);
+
+			const shapeRow = document.createElement('div');
+			shapeRow.className = 'prop-row';
+			const shapeLab = document.createElement('label');
+			shapeLab.textContent = 'Shape';
+			const shapeSel = document.createElement('select');
+			const cvShape = commonNodeValue(list, 'shape');
+			if (cvShape === undefined) {
+				const opt = document.createElement('option');
+				opt.value = '';
+				opt.textContent = '(mixed)';
+				shapeSel.appendChild(opt);
+			}
+			for (let i = 0; i < SHAPES.length; i++) {
+				const opt = document.createElement('option');
+				opt.value = SHAPES[i].value;
+				opt.textContent = SHAPES[i].label;
+				if (cvShape === SHAPES[i].value) opt.selected = true;
+				shapeSel.appendChild(opt);
+			}
+			shapeSel.addEventListener('change', () => {
+				if (!shapeSel.value) return;
+				applyToSelectedNodes(n => {
+					n.shape = shapeSel.value;
+					if (n.element) n.element.className = 'node shape-' + n.shape + ' selected';
+					applyNodeSize(n);
+				});
+			});
+			shapeRow.appendChild(shapeLab);
+			shapeRow.appendChild(shapeSel);
+			propContent.appendChild(shapeRow);
+
+			const parentRow = document.createElement('div');
+			parentRow.className = 'prop-row';
+			const parentLab = document.createElement('label');
+			parentLab.textContent = 'Parent';
+			const parentSel = document.createElement('select');
+			const cvParent = commonNodeValue(list, 'parent');
+			if (cvParent === undefined) {
+				const opt = document.createElement('option'); opt.value = '__mixed__'; opt.textContent = '(mixed)'; parentSel.appendChild(opt);
+			}
+			const none = document.createElement('option'); none.value = ''; none.textContent = '(none)'; if (cvParent === '') none.selected = true; parentSel.appendChild(none);
+			for (const id in nodes) {
+				if (list.some(n => n.id === id)) continue;
+				const opt = document.createElement('option');
+				opt.value = id;
+				opt.textContent = id + ' — ' + (nodes[id].label || id);
+				if (cvParent === id) opt.selected = true;
+				parentSel.appendChild(opt);
+			}
+			parentSel.addEventListener('change', () => {
+				if (parentSel.value === '__mixed__') return;
+				applyToSelectedNodes(n => { setNodeParent(n, parentSel.value || null); });
+			});
+			parentRow.appendChild(parentLab);
+			parentRow.appendChild(parentSel);
+			propContent.appendChild(parentRow);
+
+			const sizeRow = document.createElement('div');
+			sizeRow.className = 'prop-row three-col';
+			function sizeField(label, key) {
+				const field = document.createElement('div'); field.className = 'panel-field';
+				const lab = document.createElement('label'); lab.textContent = label;
+				const inp = document.createElement('input'); inp.type = 'number'; inp.min = '10'; inp.step = '1'; inp.dataset.sizeKey = key;
+				const cv = commonNodeValue(list, key);
+				if (cv !== undefined) inp.value = cv; else inp.placeholder = '(mixed)';
+				inp.addEventListener('input', () => {
+					const val = Math.max(10, parseInt(inp.value, 10) || 10);
+					applyToSelectedNodes(n => { n[key] = val; if (n.shape === 'circle') n.h = n.w; applyNodeSize(n); });
+				});
+				field.appendChild(lab); field.appendChild(inp); return field;
+			}
+			sizeRow.appendChild(sizeField('W', 'w'));
+			sizeRow.appendChild(sizeField('H', 'h'));
+			const colorField = document.createElement('div'); colorField.className = 'panel-field';
+			const colorLab = document.createElement('label'); colorLab.textContent = 'Color';
+			const colorInp = document.createElement('input'); colorInp.type = 'color';
+			const cvColor = commonNodeValue(list, 'color');
+			colorInp.value = cvColor !== undefined && cvColor ? cvColor : (list[0].color || '#ffffff');
+			colorInp.addEventListener('input', () => applyToSelectedNodes(n => { n.color = colorInp.value; n.hsl = null; if (n.element) n.element.style.backgroundColor = n.color; }));
+			colorField.appendChild(colorLab); colorField.appendChild(colorInp); sizeRow.appendChild(colorField);
+			propContent.appendChild(sizeRow);
+		}
+
+		function makeContainsRegex(value) {
+			value = String(value || '').trim();
+			if (!value) return null;
+			try {
+				return new RegExp('.*' + value + '.*', 'i');
+			} catch (e) {
+				const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+				return new RegExp('.*' + escaped + '.*', 'i');
+			}
+		}
+
+		function objectMatchesSearch(kind, obj) {
+			if (searchFilters.type && searchFilters.type !== kind) return false;
+			const idRe = makeContainsRegex(searchFilters.id);
+			if (idRe && !idRe.test(obj.id || '')) return false;
+			const labelRe = makeContainsRegex(searchFilters.label);
+			if (labelRe && !labelRe.test(obj.label || '')) return false;
+			const shapeRe = makeContainsRegex(searchFilters.shape);
+			if (shapeRe && !shapeRe.test(kind === 'node' ? (obj.shape || '') : 'link')) return false;
+			return true;
+		}
+
+		function renderSelectionDropdown() {
+			if (!selectionDropdown) return;
+			suppressSelectionDropdownChange = true;
+			selectionDropdown.innerHTML = '';
+
+			const placeholder = document.createElement('option');
+			placeholder.value = '';
+			placeholder.textContent = selected ? 'Jump to object...' : 'Search / select object...';
+			selectionDropdown.appendChild(placeholder);
+
+			for (const id in nodes) {
+				const n = nodes[id];
+				if (!selected && !objectMatchesSearch('node', n)) continue;
+				const opt = document.createElement('option');
+				opt.value = 'node:' + id;
+				opt.textContent = 'Node  ' + id + ' — ' + (n.label || id);
+				if (selected && selected.type === 'node' && selected.id === id) opt.selected = true;
+				selectionDropdown.appendChild(opt);
+			}
+			for (let i = 0; i < links.length; i++) {
+				const l = links[i];
+				if (!selected && !objectMatchesSearch('link', l)) continue;
+				const opt = document.createElement('option');
+				opt.value = 'link:' + l.id;
+				opt.textContent = 'Link  ' + l.id + ' — ' + l.from + ' → ' + l.to + (l.label ? ' | ' + l.label : '');
+				if (selected && selected.type === 'link' && selected.id === l.id) opt.selected = true;
+				selectionDropdown.appendChild(opt);
+			}
+			if (selected && selected.type === 'multi') {
+				const opt = document.createElement('option');
+				opt.value = 'multi';
+				opt.textContent = (selected.ids || []).length + ' nodes selected';
+				opt.selected = true;
+				selectionDropdown.appendChild(opt);
+			}
+			suppressSelectionDropdownChange = false;
+		}
+
+		function setupSnapToggle() {
+			if (!snapToggle) return;
+			snapToggle.checked = snapToGrid;
+			snapToggle.addEventListener('change', function() {
+				snapToGrid = !!snapToggle.checked;
+			});
+		}
+
+		function setupSelectionDropdown() {
+			if (!selectionDropdown) return;
+			selectionDropdown.addEventListener('change', function() {
+				if (suppressSelectionDropdownChange) return;
+				const v = selectionDropdown.value;
+				if (!v) return;
+				if (v.startsWith('node:')) selectNode(v.slice(5));
+				else if (v.startsWith('link:')) selectLink(v.slice(5));
+			});
+		}
+
+		function renderSearchProperties() {
+			if (selectedPanel) selectedPanel.classList.add('search-mode');
+			// Search layout mirrors the node/template layout: ID + Label on line 2,
+			// Type + Shape on line 3.
+
+			function makeSearchField(label, key) {
+				const field = document.createElement('div');
+				field.className = 'panel-field';
+				const lab = document.createElement('label');
+				lab.textContent = label;
+				const inp = document.createElement('input');
+				inp.type = 'text';
+				inp.placeholder = 'contains / regex';
+				inp.value = searchFilters[key] || '';
+				inp.addEventListener('input', function() {
+					searchFilters[key] = inp.value || '';
+					renderSelectionDropdown();
+				});
+				field.appendChild(lab);
+				field.appendChild(inp);
+				return field;
+			}
+
+			const idLabelRow = document.createElement('div');
+			idLabelRow.className = 'prop-row two-col';
+			idLabelRow.appendChild(makeSearchField('ID', 'id'));
+			idLabelRow.appendChild(makeSearchField('Label', 'label'));
+			propContent.appendChild(idLabelRow);
+
+			const typeShapeRow = document.createElement('div');
+			typeShapeRow.className = 'prop-row two-col';
+
+			const typeField = document.createElement('div');
+			typeField.className = 'panel-field';
+			const typeLab = document.createElement('label');
+			typeLab.textContent = 'Type';
+			const typeSel = document.createElement('select');
+			const typeOptions = [['', 'Any'], ['node', 'Node'], ['link', 'Link']];
+			for (let i = 0; i < typeOptions.length; i++) {
+				const opt = document.createElement('option');
+				opt.value = typeOptions[i][0];
+				opt.textContent = typeOptions[i][1];
+				if ((searchFilters.type || '') === opt.value) opt.selected = true;
+				typeSel.appendChild(opt);
+			}
+			typeSel.addEventListener('change', function() {
+				searchFilters.type = typeSel.value || '';
+				renderSelectionDropdown();
+			});
+			typeField.appendChild(typeLab);
+			typeField.appendChild(typeSel);
+
+			const shapeField = document.createElement('div');
+			shapeField.className = 'panel-field';
+			const shapeLab = document.createElement('label');
+			shapeLab.textContent = 'Shape';
+			const shapeSel = document.createElement('select');
+			const shapeOptions = [
+				['', 'Any'],
+				['rect', 'Rectangle []'],
+				['round', 'Rounded ()'],
+				['circle', 'Circle (())'],
+				['diamond', 'Diamond {}'],
+				['stadium', 'Stadium ([])'],
+				['link', 'Link']
+			];
+			for (let i = 0; i < shapeOptions.length; i++) {
+				const opt = document.createElement('option');
+				opt.value = shapeOptions[i][0];
+				opt.textContent = shapeOptions[i][1];
+				if ((searchFilters.shape || '') === opt.value) opt.selected = true;
+				shapeSel.appendChild(opt);
+			}
+			shapeSel.addEventListener('change', function() {
+				searchFilters.shape = shapeSel.value || '';
+				renderSelectionDropdown();
+			});
+			shapeField.appendChild(shapeLab);
+			shapeField.appendChild(shapeSel);
+
+			typeShapeRow.appendChild(typeField);
+			typeShapeRow.appendChild(shapeField);
+			propContent.appendChild(typeShapeRow);
+		}
+
+		function updateSelectionUI() {
+			propContent.innerHTML = '';
+			if (selectedPanel) selectedPanel.classList.toggle('search-mode', !selected);
+			if (selectedCaption) selectedCaption.textContent = selected ? 'Selected:' : 'Search mode:';
+			renderSelectionDropdown();
+
+			if (!selected) {
+				renderSearchProperties();
+				return;
+			}
+
+			if (selected.type === 'multi') {
+				renderMultiNodeProperties();
+				return;
+			}
+
+			if (selected.type === 'node') {
+				const node = nodes[selected.id];
+				if (!node) {
+					deselect();
+					return;
+				}
+
+				// ID + Label
+				const idLabelRow = document.createElement('div');
+				idLabelRow.className = 'prop-row two-col';
+
+				const idField = document.createElement('div');
+				idField.className = 'panel-field';
+				const idLab = document.createElement('label');
+				idLab.textContent = 'ID';
+				const idInp = document.createElement('input');
+				idInp.type = 'text';
+				idInp.value = node.id;
+				function commitNodeIdEdit() {
+					const oldId = node.id;
+					const nextId = idInp.value.trim();
+					if (!changeNodeId(oldId, nextId)) idInp.value = oldId;
+				}
+				idInp.addEventListener('change', commitNodeIdEdit);
+				idInp.addEventListener('keydown', function(e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						idInp.blur();
+					}
+				});
+				idField.appendChild(idLab);
+				idField.appendChild(idInp);
+
+				const labelField = document.createElement('div');
+				labelField.className = 'panel-field';
+				const labelLab = document.createElement('label');
+				labelLab.textContent = 'Label';
+				const labelInp = document.createElement('input');
+				labelInp.type = 'text';
+				labelInp.value = node.label;
+				labelInp.addEventListener('input', function() {
+					node.label = labelInp.value || 'Node';
+					if (node.element) {
+						const lbl = node.element.querySelector('.node-label');
+						if (lbl) lbl.textContent = node.label;
+					}
+					renderTemplateParentOptions();
+					refreshLive();   // cheap live update + scheduled mermaid
+				});
+				labelField.appendChild(labelLab);
+				labelField.appendChild(labelInp);
+
+				idLabelRow.appendChild(idField);
+				idLabelRow.appendChild(labelField);
+				propContent.appendChild(idLabelRow);
+
+				// Shape
+				const shapeRow = document.createElement('div');
+				shapeRow.className = 'prop-row';
+				const shapeLab = document.createElement('label');
+				shapeLab.textContent = 'Shape';
+				const shapeSel = document.createElement('select');
+				for (let i = 0; i < SHAPES.length; i++) {
+					const opt = document.createElement('option');
+					opt.value = SHAPES[i].value;
+					opt.textContent = SHAPES[i].label;
+					if (SHAPES[i].value === node.shape) opt.selected = true;
+					shapeSel.appendChild(opt);
+				}
+				shapeSel.addEventListener('change', function() {
+					const oldShape = node.shape;
+					node.shape = shapeSel.value;
+					if (oldShape !== 'circle' && node.shape === 'circle') {
+						node.w = Math.max(10, Math.round(Math.min(node.w || 72, node.h || 72) / 2));
+						node.h = node.w;
+					} else if (oldShape === 'circle' && node.shape !== 'circle') {
+						node.w = Math.max(24, (node.w || 36) * 2);
+						node.h = Math.max(24, node.w);
+					}
+					if (node.element) {
+						node.element.className = 'node shape-' + node.shape + (selected && selected.type === 'node' && selected.id === node.id ? ' selected' : '');
+						applyNodeSize(node);
+					}
+					updateSelectionUI();
+					redrawLinks();
+					refreshLive();
+				});
+				shapeRow.appendChild(shapeLab);
+				shapeRow.appendChild(shapeSel);
+				propContent.appendChild(shapeRow);
+
+				// Parent node
+				const parentRow = document.createElement('div');
+				parentRow.className = 'prop-row';
+				const parentLab = document.createElement('label');
+				parentLab.textContent = 'Parent';
+				const parentSel = document.createElement('select');
+
+				const noneOpt = document.createElement('option');
+				noneOpt.value = '';
+				noneOpt.textContent = '(none)';
+				if (!node.parent) noneOpt.selected = true;
+				parentSel.appendChild(noneOpt);
+
+				for (const candidateId in nodes) {
+					if (candidateId === node.id) continue;
+					// Cannot parent a node to one of its own descendants because that creates a cycle.
+					if (isDescendantNode(candidateId, node.id)) continue;
+					const candidate = nodes[candidateId];
+					const opt = document.createElement('option');
+					opt.value = candidateId;
+					opt.textContent = candidateId + ' — ' + (candidate.label || candidateId);
+					if (node.parent === candidateId) opt.selected = true;
+					parentSel.appendChild(opt);
+				}
+
+				parentSel.addEventListener('change', function() {
+					setNodeParent(node, parentSel.value || null);
+					updateAll();
+				});
+
+				parentRow.appendChild(parentLab);
+				parentRow.appendChild(parentSel);
+				propContent.appendChild(parentRow);
+
+				// Width / Height / Color. For circles, W acts as radius and H is kept equal/ignored.
+				function makeSizeField(labelText, key) {
+					const field = document.createElement('div');
+					field.className = 'panel-field';
+					const lab = document.createElement('label');
+					lab.textContent = labelText;
+					const inp = document.createElement('input');
+					inp.type = 'number';
+					inp.dataset.sizeKey = key;
+					inp.min = '10';
+					inp.step = '1';
+					inp.value = node[key] || (key === 'w' ? (node.shape === 'circle' ? 36 : 90) : 36);
+					inp.addEventListener('input', function() {
+						const val = Math.max(10, parseInt(inp.value, 10) || 10);
+						node[key] = val;
+						if (node.shape === 'circle') {
+							node.h = node.w;
+							hInp.value = node.h;
+						}
+						applyNodeSize(node);
+						redrawLinks();
+						refreshLive();
+					});
+					field.appendChild(lab);
+					field.appendChild(inp);
+					return { field, inp, lab };
+				}
+
+				const sizeRow = document.createElement('div');
+				sizeRow.className = 'prop-row three-col';
+				const wBox = makeSizeField(node.shape === 'circle' ? 'W / Radius' : 'W', 'w');
+				const hBox = makeSizeField('H', 'h');
+				const hInp = hBox.inp;
+				if (node.shape === 'circle') {
+					hInp.disabled = true;
+					hInp.title = 'Circle height follows W radius';
+				}
+
+				const colorField = document.createElement('div');
+				colorField.className = 'panel-field';
+				const colorLab = document.createElement('label');
+				colorLab.textContent = 'Color';
+				const colorInp = document.createElement('input');
+				colorInp.type = 'color';
+				colorInp.value = node.color || '#ffffff';
+				colorInp.addEventListener('input', function() {
+					node.color = colorInp.value;
+					node.hsl = null;
+					if (node.element) {
+						node.element.style.backgroundColor = node.color;
+					}
+					refreshLive();
+				});
+				colorField.appendChild(colorLab);
+				colorField.appendChild(colorInp);
+
+				sizeRow.appendChild(wBox.field);
+				sizeRow.appendChild(hBox.field);
+				sizeRow.appendChild(colorField);
+				propContent.appendChild(sizeRow);
+
+				// (measurement is already aggressively scheduled by selectNode after this call)
+			} else if (selected.type === 'link') {
+				const idx = links.findIndex(function(l) { return l.id === selected.id; });
+				const link = idx >= 0 ? links[idx] : null;
+				if (!link) {
+					deselect();
+					return;
+				}
+
+				const idLabelRow = document.createElement('div');
+				idLabelRow.className = 'prop-row two-col';
+
+				const idField = document.createElement('div');
+				idField.className = 'panel-field';
+				const idLab = document.createElement('label');
+				idLab.textContent = 'ID';
+				const idInp = document.createElement('input');
+				idInp.type = 'text';
+				idInp.value = link.id;
+				function commitLinkIdEdit() {
+					const oldId = link.id;
+					const nextId = idInp.value.trim();
+					if (!changeLinkId(oldId, nextId)) idInp.value = oldId;
+				}
+				idInp.addEventListener('change', commitLinkIdEdit);
+				idInp.addEventListener('keydown', function(e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						idInp.blur();
+					}
+				});
+				idField.appendChild(idLab);
+				idField.appendChild(idInp);
+
+				const labelField = document.createElement('div');
+				labelField.className = 'panel-field';
+				const labelLab = document.createElement('label');
+				labelLab.textContent = 'Label';
+				const labelInp = document.createElement('input');
+				labelInp.type = 'text';
+				labelInp.value = link.label || '';
+				labelInp.addEventListener('input', function() {
+					link.label = labelInp.value;
+					const line = linkElements[link.id];
+					if (line) updateLinkLabelPosition(link, line);
+					refreshLive();
+				});
+				labelField.appendChild(labelLab);
+				labelField.appendChild(labelInp);
+
+				idLabelRow.appendChild(idField);
+				idLabelRow.appendChild(labelField);
+				propContent.appendChild(idLabelRow);
+
+				const colorRow = document.createElement('div');
+				colorRow.className = 'prop-row';
+				const colorLab = document.createElement('label');
+				colorLab.textContent = 'Line Color';
+				const colorInp = document.createElement('input');
+				colorInp.type = 'color';
+				colorInp.value = link.color || '#555555';
+				colorInp.addEventListener('input', function() {
+					link.color = colorInp.value;
+					const line = linkElements[link.id];
+					if (line) {
+						line.setAttribute('stroke', link.color);
+						line.setAttribute('marker-end', getArrowMarkerForColor(link.color));
+						updateLinkLabelPosition(link, line);
+					}
+					refreshLive();
+				});
+				colorRow.appendChild(colorLab);
+				colorRow.appendChild(colorInp);
+				propContent.appendChild(colorRow);
+
+				// From / To node endpoints
+				function makeEndpointRow(labelText, key) {
+					const row = document.createElement('div');
+					row.className = 'prop-row';
+					const lab = document.createElement('label');
+					lab.textContent = labelText;
+					const sel = document.createElement('select');
+
+					for (const nodeId in nodes) {
+						const n = nodes[nodeId];
+						const opt = document.createElement('option');
+						opt.value = nodeId;
+						opt.textContent = nodeId + ' — ' + (n.label || nodeId);
+						if (link[key] === nodeId) opt.selected = true;
+						sel.appendChild(opt);
+					}
+
+					sel.addEventListener('change', function() {
+						link[key] = sel.value;
+						redrawLinks();
+						updateHighlights();
+						refreshLive();
+						updateSelectionUI();
+					});
+
+					row.appendChild(lab);
+					row.appendChild(sel);
+					return row;
+				}
+
+				propContent.appendChild(makeEndpointRow('From', 'from'));
+				propContent.appendChild(makeEndpointRow('To', 'to'));
+			}
+		}
+
+		// === Mutations ===
+		function cloneNode(source, offsetX, offsetY, commitNow) {
+			const id = makeUniqueNodeId(incrementTemplateId(source.id || 'Node_1'));
+			const node = {
+				id: id,
+				label: source.label || 'Node',
+				left: (source.left || 20) + (offsetX || 0),
+				top: (source.top || 20) + (offsetY || 0),
+				w: source.w,
+				h: source.h,
+				shape: source.shape || 'rect',
+				color: source.color || '#e8f4fc',
+				hsl: source.hsl ? { h: source.hsl.h, s: source.hsl.s, l: source.hsl.l, source: source.hsl.source } : null,
+				parent: null,
+				children: []
+			};
+
+			if (commitNow === false) node._pendingCloneCommit = true;
+			nodes[id] = node;
+			ensureCanvasWorldSize(node.left + 260, node.top + 200);
+			createNodeElement(node);
+			updateHierarchyForNode(node);
+
+			if (commitNow !== false) {
+				updateAll();
+				selectNode(id);
+			}
+			return node;
+		}
+
+		function spawnFromTemplateButton() {
+			let x = 0;
+			let y = 0;
+
+			let baseNode = null;
+			if (selected && selected.type === 'node') {
+				baseNode = nodes[selected.id] || null;
+			} else if (selected && selected.type === 'multi' && selected.ids && selected.ids.length) {
+				baseNode = nodes[selected.ids[0]] || null;
+			}
+
+			if (baseNode) {
+				const baseSize = getNodeVisualSize(baseNode);
+				const tmplSize = template.shape === 'circle'
+					? { w: (parseInt(template.w, 10) || 36) * 2, h: (parseInt(template.w, 10) || 36) * 2 }
+					: { w: parseInt(template.w, 10) || defaultTemplateSizeForShape(template.shape).w, h: parseInt(template.h, 10) || defaultTemplateSizeForShape(template.shape).h };
+				// Place the new object just to the right of the selected object. spawnNode()
+				// receives center coordinates, so add half of the template size.
+				x = baseNode.left + baseSize.w + 40 + tmplSize.w * 0.5;
+				y = baseNode.top + baseSize.h * 0.5;
+			}
+
+			spawnNode(x, y);
+		}
+
+		window.spawnFromTemplateButton = spawnFromTemplateButton;
+
+		function spawnNode(x, y) {
+			const id = makeUniqueNodeId(template.id || 'Node_1');
+			const sizeDefaults = defaultTemplateSizeForShape(template.shape);
+			const node = {
+				id: id,
+				label: template.label,
+				left: 20,
+				top: 20,
+				w: parseInt(template.w, 10) || sizeDefaults.w,
+				h: parseInt(template.h, 10) || sizeDefaults.h,
+				shape: template.shape,
+				color: template.color,
+				parent: null,
+				children: []
+			};
+			if (node.shape === 'circle') node.h = node.w;
+			const size = getNodeVisualSize(node);
+			node.left = x - size.w * 0.5;
+			node.top = y - size.h * 0.5;
+			nodes[id] = node;
+			ensureCanvasWorldSize(node.left + 260, node.top + 200);
+			createNodeElement(node);
+			if (template.parent && nodes[template.parent]) setNodeParent(node, template.parent);
+			else updateHierarchyForNode(node);
+			updateAll();
+			selectNode(id);
+
+			// Auto-increment Spawn Template ID using _N after each successful spawn.
+			template.id = makeUniqueNodeId(incrementTemplateId(id));
+			if (tmplId) tmplId.value = template.id;
+			renderTemplateParentOptions();
+		}
+
+		function deleteNode(id) {
+			const node = nodes[id];
+			detachNodeHierarchy(id);
+			if (node && node.element) {
+				node.element.parentNode.removeChild(node.element);
+			}
+			delete nodes[id];
+
+			// Remove connected links (reverse to avoid index shift)
+			for (let i = links.length - 1; i >= 0; i--) {
+				if (links[i].from === id || links[i].to === id) {
+					links.splice(i, 1);
+				}
+			}
+
+			if (selected && selected.id === id) {
+				deselect();
+			}
+			updateAll();
+		}
+
+		function deleteLink(id) {
+			for (let i = 0; i < links.length; i++) {
+				if (links[i].id === id) {
+					links.splice(i, 1);
+					break;
+				}
+			}
+			if (selected && selected.id === id) {
+				deselect();
+			}
+			updateAll();
+		}
+
+		function deleteSelected() {
+			if (!selected) return;
+			if (selected.type === 'node') {
+				deleteNode(selected.id);
+			} else if (selected.type === 'multi') {
+				const ids = (selected.ids || []).slice();
+				deselect();
+				for (let i = 0; i < ids.length; i++) if (nodes[ids[i]]) deleteNode(ids[i]);
+			} else {
+				deleteLink(selected.id);
+			}
+		}
+
+		function clearAll() {
+			// Remove all node DOM
+			const nodeEls = canvas.querySelectorAll('.node');
+			for (let i = 0; i < nodeEls.length; i++) {
+				nodeEls[i].parentNode.removeChild(nodeEls[i]);
+			}
+
+			nodes = Object.create(null);
+			links = [];
+			nextNodeId = 1;
+			nextLinkId = 1;
+			selected = null;
+
+			updateSelectionUI();
+			updateAll();
+		}
+
+		// === Mode handling ===
+		function setMode(mode) {
+			currentMode = mode;
+
+			// Update button states (fast)
+			const btns = document.querySelectorAll('.tool-btn');
+			for (let i = 0; i < btns.length; i++) {
+				const btn = btns[i];
+				btn.classList.toggle('active', btn.dataset.mode === mode);
+			}
+
+			// Cursor hints
+			if (mode === 'add') {
+				canvas.style.cursor = 'crosshair';
+			} else if (mode === 'universal') {
+				canvas.style.cursor = 'copy';
+			} else if (mode === 'delete') {
+				canvas.style.cursor = 'not-allowed';
+			} else {
+				canvas.style.cursor = 'default';
+			}
+
+			// If leaving link drag, clean up
+			if (linkDrag && linkDrag.tempLine && linkDrag.tempLine.parentNode) {
+				linkDrag.tempLine.parentNode.removeChild(linkDrag.tempLine);
+				linkDrag = null;
+			}
+		}
+
+		// === Canvas interactions ===
+		function setupCanvas() {
+			canvas.addEventListener('click', function(e) {
+				const t = e.target;
+				const isEmptyCanvasClick = (t === canvas || t.id === 'canvas-spacer' || t.id === 'canvas-world' || t.id === 'links-svg');
+
+				if (isEmptyCanvasClick && performance.now() < suppressCanvasAddUntil) {
+					e.preventDefault();
+					e.stopPropagation();
+					return;
+				}
+
+				if (currentMode === 'universal') {
+					// Universal mode: existing objects are selectable/editable, and an empty
+					// canvas click creates a new element from the template.
+					if (isEmptyCanvasClick) {
+						const p = clientToCanvasPoint(e.clientX, e.clientY);
+						spawnNode(p.x, p.y);
+					}
+				} else if (currentMode === 'add') {
+					const p = clientToCanvasPoint(e.clientX, e.clientY);
+					spawnNode(p.x, p.y);
+				} else if (currentMode === 'select') {
+					// Click on empty space deselects
+					if (isEmptyCanvasClick) {
+						deselect();
+					}
+				}
+			});
+
+			// Select mode: drag a rectangle on empty canvas to select multiple nodes.
+			canvas.addEventListener('mousedown', function(e) {
+				if (currentMode !== 'select' || e.button !== 0) return;
+				const t = e.target;
+				const isEmptyCanvasDown = (t === canvas || t.id === 'canvas-spacer' || t.id === 'canvas-world' || t.id === 'links-svg' || t.id === 'grid-svg');
+				if (!isEmptyCanvasDown) return;
+
+				e.preventDefault();
+				const startClientX = e.clientX;
+				const startClientY = e.clientY;
+				const startPoint = clientToCanvasPoint(e.clientX, e.clientY);
+				const rect0 = canvas.getBoundingClientRect();
+				const box = document.createElement('div');
+				box.className = 'selection-box';
+				canvas.appendChild(box);
+
+				function updateBox(ev) {
+					const x1 = startClientX - rect0.left;
+					const y1 = startClientY - rect0.top;
+					const x2 = ev.clientX - rect0.left;
+					const y2 = ev.clientY - rect0.top;
+					box.style.left = Math.min(x1, x2) + 'px';
+					box.style.top = Math.min(y1, y2) + 'px';
+					box.style.width = Math.abs(x2 - x1) + 'px';
+					box.style.height = Math.abs(y2 - y1) + 'px';
+				}
+
+				function onMove(ev) {
+					updateBox(ev);
+					markUserActivity();
+				}
+
+				function onUp(ev) {
+					document.removeEventListener('mousemove', onMove);
+					document.removeEventListener('mouseup', onUp);
+					if (box.parentNode) box.parentNode.removeChild(box);
+
+					const endPoint = clientToCanvasPoint(ev.clientX, ev.clientY);
+					const minX = Math.min(startPoint.x, endPoint.x);
+					const maxX = Math.max(startPoint.x, endPoint.x);
+					const minY = Math.min(startPoint.y, endPoint.y);
+					const maxY = Math.max(startPoint.y, endPoint.y);
+
+					if (Math.abs(ev.clientX - startClientX) < 4 && Math.abs(ev.clientY - startClientY) < 4) {
+						deselect();
+					} else {
+						const ids = [];
+						for (const id in nodes) {
+							const c = getNodeCenter(nodes[id]);
+							if (c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY) ids.push(id);
+						}
+						selectMultipleNodes(ids);
+					}
+					suppressCanvasAddUntil = performance.now() + 250;
+				}
+
+				updateBox(e);
+				document.addEventListener('mousemove', onMove);
+				document.addEventListener('mouseup', onUp, { once: true });
+			});
+
+			// Mouse wheel / trackpad pinch zooms the canvas to cursor, except over the
+			// selected object where wheel is reserved for object W/H scaling.
+			canvas.addEventListener('wheel', function(e) {
+				if (isEventOverSelectedNode(e)) return;
+				e.preventDefault();
+				const factor = Math.exp(-e.deltaY * 0.0015);
+				zoomCanvasAt(e.clientX, e.clientY, factor);
+			}, { passive: false });
+
+			// Middle mouse button (mouse3) pans the canvas. Works over nodes too.
+			canvas.addEventListener('mousedown', function(e) {
+				if (e.button !== 1) return;
+				e.preventDefault();
+				e.stopPropagation();
+
+				const startX = e.clientX;
+				const startY = e.clientY;
+				const startPanX = canvasPanX;
+				const startPanY = canvasPanY;
+				document.body.style.cursor = 'grabbing';
+				document.body.style.userSelect = 'none';
+
+				function onMove(ev) {
+					canvasPanX = startPanX + (ev.clientX - startX);
+					canvasPanY = startPanY + (ev.clientY - startY);
+					applyCanvasZoom();
+					markUserActivity();
+				}
+
+				function onUp() {
+					document.body.style.cursor = '';
+					document.body.style.userSelect = '';
+					document.removeEventListener('mousemove', onMove);
+					document.removeEventListener('mouseup', onUp);
+				}
+
+				document.addEventListener('mousemove', onMove);
+				document.addEventListener('mouseup', onUp, { once: true });
+			}, true);
+
+			// Safari gesture zoom on the canvas (node-level gesture still scales selected node).
+			let canvasGestureLastScale = 1;
+			canvas.addEventListener('gesturestart', function(e) {
+				if (isEventOverSelectedNode(e)) return;
+				e.preventDefault();
+				canvasGestureLastScale = e.scale || 1;
+			});
+			canvas.addEventListener('gesturechange', function(e) {
+				if (isEventOverSelectedNode(e)) return;
+				e.preventDefault();
+				const currentScale = e.scale || 1;
+				const factor = Math.max(0.8, Math.min(1.25, currentScale / canvasGestureLastScale));
+				canvasGestureLastScale = currentScale;
+				zoomCanvasAt(e.clientX, e.clientY, factor);
+			});
+
+			// Keyboard support
+			document.addEventListener('keydown', function(e) {
+				if (e.key === 'Delete' || e.key === 'Backspace') {
+					if (document.activeElement.tagName !== 'INPUT' && 
+						document.activeElement.tagName !== 'TEXTAREA') {
+						e.preventDefault();
+						deleteSelected();
+					}
+				}
+				if (e.key === 'Escape') {
+					if (linkDrag && linkDrag.tempLine && linkDrag.tempLine.parentNode) {
+						linkDrag.tempLine.parentNode.removeChild(linkDrag.tempLine);
+					}
+					linkDrag = null;
+					dragState = null;
+					deselect();
+				}
+				if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+					e.preventDefault();
+					deselect();
+				}
+			});
+
+			// Prevent text selection while dragging
+			canvas.addEventListener('mousedown', function(e) {
+				if (currentMode === 'add' || currentMode === 'delete') {
+					e.preventDefault();
+				}
+			});
+		}
+
+		// === Resizer (drag to resize panes) ===
+		function setupResizer() {
+			const resizer = document.getElementById('resizer');
+			const leftPane = document.getElementById('canvas-pane');
+			let isDragging = false;
+
+			resizer.addEventListener('mousedown', function(e) {
+				isDragging = true;
+				document.body.style.cursor = 'col-resize';
+				document.body.style.userSelect = 'none';
+
+				const startX = e.clientX;
+				const startWidth = leftPane.offsetWidth;
+
+				function onMove(ev) {
+					if (!isDragging) return;
+					const dx = ev.clientX - startX;
+					const newWidth = Math.max(280, Math.min(window.innerWidth - 320, startWidth + dx));
+					leftPane.style.flex = '0 0 ' + newWidth + 'px';
+				}
+
+				function onUp() {
+					isDragging = false;
+					document.body.style.cursor = '';
+					document.body.style.userSelect = '';
+					document.removeEventListener('mousemove', onMove);
+					document.removeEventListener('mouseup', onUp);
+				}
+
+				document.addEventListener('mousemove', onMove);
+				document.addEventListener('mouseup', onUp, { once: true });
+			});
+
+			// Double click resizer to reset default split (40% canvas)
+			resizer.addEventListener('dblclick', function() {
+				leftPane.style.flex = '0 0 40%';
+			});
+		}
+
+		// === Code resizer (drag to resize preview/code split) ===
+		function setupCodeResizer() {
+			const codeResizer = document.getElementById('code-resizer');
+			const previewPane = document.getElementById('preview-pane');
+			const codeSection = document.getElementById('code-section');
+			if (!codeResizer || !previewPane || !codeSection) return;
+
+			let isDragging = false;
+
+			function setCodeHeight(px) {
+				const paneRect = previewPane.getBoundingClientRect();
+				const header = previewPane.querySelector('.preview-header');
+				const headerHeight = header ? header.offsetHeight : 0;
+				const dividerHeight = codeResizer.offsetHeight || 6;
+				const available = Math.max(180, paneRect.height - headerHeight - dividerHeight);
+				const minCode = Math.min(90, available * 0.45);
+				const maxCode = Math.max(minCode, available - 90);
+				const nextHeight = Math.max(minCode, Math.min(maxCode, px));
+				codeSection.style.flex = '0 0 ' + nextHeight + 'px';
+			}
+
+			function resetCodeHeight() {
+				const paneRect = previewPane.getBoundingClientRect();
+				const header = previewPane.querySelector('.preview-header');
+				const headerHeight = header ? header.offsetHeight : 0;
+				const dividerHeight = codeResizer.offsetHeight || 6;
+				const available = Math.max(180, paneRect.height - headerHeight - dividerHeight);
+				setCodeHeight(available * 0.40);
+			}
+
+			// Make the default code area exactly 40% of the available preview/code height.
+			requestAnimationFrame(resetCodeHeight);
+
+			codeResizer.addEventListener('mousedown', function(e) {
+				e.preventDefault();
+				isDragging = true;
+				document.body.style.cursor = 'row-resize';
+				document.body.style.userSelect = 'none';
+
+				const startY = e.clientY;
+				const startHeight = codeSection.offsetHeight;
+
+				function onMove(ev) {
+					if (!isDragging) return;
+					const dy = ev.clientY - startY;
+					// Moving the divider down makes the code area shorter; up makes it taller.
+					setCodeHeight(startHeight - dy);
+				}
+
+				function onUp() {
+					isDragging = false;
+					document.body.style.cursor = '';
+					document.body.style.userSelect = '';
+					document.removeEventListener('mousemove', onMove);
+					document.removeEventListener('mouseup', onUp);
+				}
+
+				document.addEventListener('mousemove', onMove);
+				document.addEventListener('mouseup', onUp, { once: true });
+			});
+
+			// Double click the delimiter to restore the requested 40% code height.
+			codeResizer.addEventListener('dblclick', resetCodeHeight);
+
+			// If the window changes size and the code area is still percentage-based from startup,
+			// keep it at 40%; after manual drag, the user's chosen pixel height is preserved/clamped.
+			let userResized = false;
+			codeResizer.addEventListener('mousedown', () => { userResized = true; }, { once: true });
+			window.addEventListener('resize', function() {
+				if (!userResized) resetCodeHeight();
+				else setCodeHeight(codeSection.offsetHeight);
+			});
+		}
+
+		function defaultTemplateSizeForShape(shape) {
+			if (shape === 'circle') return { w: 36, h: 36 };
+			if (shape === 'diamond') return { w: 72, h: 72 };
+			return { w: 90, h: 36 };
+		}
+
+		function makeUniqueNodeId(baseId) {
+			let base = (baseId || 'Node_1').trim().replace(/[^A-Za-z0-9_]/g, '_');
+			if (!base) base = 'Node_1';
+			if (!nodes[base]) return base;
+
+			const m = base.match(/^(.*?)(?:_(\d+))?$/);
+			const prefix = (m && m[1]) ? m[1] : base;
+			let n = (m && m[2]) ? parseInt(m[2], 10) + 1 : 1;
+			let candidate = prefix + '_' + n;
+			while (nodes[candidate]) {
+				n++;
+				candidate = prefix + '_' + n;
+			}
+			return candidate;
+		}
+
+		function incrementTemplateId(id) {
+			const m = String(id || 'Node_1').match(/^(.*)_(\d+)$/);
+			if (m) return m[1] + '_' + (parseInt(m[2], 10) + 1);
+			return String(id || 'Node') + '_1';
+		}
+
+		function renderTemplateParentOptions() {
+			if (!tmplParent) return;
+			const current = template.parent || '';
+			tmplParent.innerHTML = '';
+
+			const none = document.createElement('option');
+			none.value = '';
+			none.textContent = '(none)';
+			tmplParent.appendChild(none);
+
+			for (const id in nodes) {
+				const n = nodes[id];
+				const opt = document.createElement('option');
+				opt.value = id;
+				opt.textContent = id + ' — ' + (n.label || id);
+				tmplParent.appendChild(opt);
+			}
+
+			if (current && nodes[current]) {
+				tmplParent.value = current;
+			} else {
+				template.parent = '';
+				tmplParent.value = '';
+			}
+		}
+
+		function syncTemplateSizeInputs() {
+			if (!tmplW || !tmplH || !tmplShape) return;
+			if (template.shape === 'circle') {
+				template.h = template.w;
+				tmplH.value = template.h;
+				tmplH.disabled = true;
+				tmplH.title = 'Circle height follows W radius';
+				const label = tmplW.parentNode && tmplW.parentNode.querySelector('label');
+				if (label) label.textContent = 'W / Radius';
+			} else {
+				tmplH.disabled = false;
+				tmplH.title = '';
+				const label = tmplW.parentNode && tmplW.parentNode.querySelector('label');
+				if (label) label.textContent = 'W';
+			}
+		}
+
+		// === Template bindings (live) ===
+		function setupTemplate() {
+			tmplId = document.getElementById('tmpl-id');
+			tmplLabel = document.getElementById('tmpl-label');
+			tmplShape = document.getElementById('tmpl-shape');
+			tmplParent = document.getElementById('tmpl-parent');
+			tmplW = document.getElementById('tmpl-w');
+			tmplH = document.getElementById('tmpl-h');
+			tmplColor = document.getElementById('tmpl-color');
+
+			tmplId.value = template.id;
+			tmplLabel.value = template.label;
+			tmplShape.value = template.shape;
+			tmplW.value = template.w;
+			tmplH.value = template.h;
+			tmplColor.value = template.color;
+			renderTemplateParentOptions();
+			syncTemplateSizeInputs();
+
+			tmplId.addEventListener('input', function() {
+				template.id = tmplId.value || 'Node_1';
+			});
+
+			tmplLabel.addEventListener('input', function() {
+				template.label = tmplLabel.value || 'Node';
+				// Template change is only for future spawns → no need to re-render diagram
+			});
+
+			tmplShape.addEventListener('change', function() {
+				const oldShape = template.shape;
+				template.shape = tmplShape.value;
+				if (oldShape !== 'circle' && template.shape === 'circle') {
+					template.w = Math.max(10, Math.round(Math.min(template.w || 72, template.h || 72) / 2));
+					template.h = template.w;
+				} else if (oldShape === 'circle' && template.shape !== 'circle') {
+					template.w = Math.max(24, (template.w || 36) * 2);
+					template.h = Math.max(24, template.w);
+				}
+				tmplW.value = template.w;
+				tmplH.value = template.h;
+				syncTemplateSizeInputs();
+			});
+
+			tmplParent.addEventListener('change', function() {
+				template.parent = tmplParent.value || '';
+			});
+
+			tmplW.addEventListener('input', function() {
+				template.w = Math.max(10, parseInt(tmplW.value, 10) || 10);
+				if (template.shape === 'circle') {
+					template.h = template.w;
+					tmplH.value = template.h;
+				}
+			});
+
+			tmplH.addEventListener('input', function() {
+				template.h = Math.max(10, parseInt(tmplH.value, 10) || 10);
+			});
+
+			tmplColor.addEventListener('input', function() {
+				template.color = tmplColor.value;
+			});
+		}
+
+		// === Initial demo graph ===
+		function loadDemo() {
+			// Clear first
+			nodes = Object.create(null);
+			links = [];
+
+			// Node 1
+			const n1 = {
+				id: 'N1',
+				label: 'Start',
+				left: 120,
+				top: 80,
+				w: 90,
+				h: 36,
+				shape: 'rect',
+				color: '#d4edda'
+			};
+			nodes['N1'] = n1;
+			createNodeElement(n1);
+
+			// Node 2
+			const n2 = {
+				id: 'N2',
+				label: 'Process',
+				left: 360,
+				top: 80,
+				w: 100,
+				h: 36,
+				shape: 'round',
+				color: '#fff3cd'
+			};
+			nodes['N2'] = n2;
+			createNodeElement(n2);
+
+			// Node 3
+			const n3 = {
+				id: 'N3',
+				label: 'Decision',
+				left: 240,
+				top: 240,
+				w: 80,
+				h: 80,
+				shape: 'diamond',
+				color: '#cce5ff'
+			};
+			nodes['N3'] = n3;
+			createNodeElement(n3);
+
+			// Node 4
+			const n4 = {
+				id: 'N4',
+				label: 'End',
+				left: 120,
+				top: 380,
+				w: 34,
+				h: 34,
+				shape: 'circle',
+				color: '#f8d7da'
+			};
+			nodes['N4'] = n4;
+			createNodeElement(n4);
+
+			// Links
+			links.push({ id: 'L1', from: 'N1', to: 'N2', label: '' });
+			links.push({ id: 'L2', from: 'N2', to: 'N3', label: 'check' });
+			links.push({ id: 'L3', from: 'N3', to: 'N4', label: 'yes' });
+			links.push({ id: 'L4', from: 'N3', to: 'N2', label: 'no' });
+
+			nextNodeId = 5;
+			nextLinkId = 5;
+
+			updateAll();
+			// Seed lastGeneratedCode after the first programmatic write
+			lastGeneratedCode = mermaidCode.value || '';
+
+			// "code changed by any reason -> redraw mermaid"
+			// After the very first structural load we also want the Mermaid preview to appear.
+			// We schedule it through the normal idle path (respects the zero-freeze model).
+			requestPreviewUpdate();
+
+			// Select first node for demo
+			setTimeout(function() {
+				selectNode('N1');
+			}, 80);
+
+			// One-time background render of the preview after the page has fully settled.
+			// Uses idle callback so it never affects initial load responsiveness.
+			// (This is a safety net in addition to the requestPreviewUpdate above.)
+			setTimeout(() => {
+				idleCallbackId = requestIdleCallback(() => {
+					idleCallbackId = null;
+					if (!isRenderingMermaid) {
+						performMermaidRender();
+					}
+				}, { timeout: 1500 });
+			}, 1200);
+		}
+
+		// === Save / download helpers ===
+		function downloadFile(filename, mimeType, content) {
+			const blob = new Blob([content], { type: mimeType });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		}
+
+		function safeNodeForJson(node) {
+			return {
+				id: node.id,
+				label: node.label,
+				left: node.left,
+				top: node.top,
+				w: node.w,
+				h: node.h,
+				shape: node.shape,
+				color: node.color,
+				hsl: node.hsl ? { h: node.hsl.h, s: node.hsl.s, l: node.hsl.l } : null,
+				parent: node.parent || null,
+				children: (node.children || []).slice()
+			};
+		}
+
+		function serializeEditorState() {
+			const nodeList = [];
+			for (const id in nodes) nodeList.push(safeNodeForJson(nodes[id]));
+			return {
+				version: 1,
+				type: 'mermaid-visual-editor-objects',
+				direction: direction,
+				template: { ...template },
+				nextNodeId: nextNodeId,
+				nextLinkId: nextLinkId,
+				canvas: {
+					zoom: canvasZoom,
+					panX: canvasPanX,
+					panY: canvasPanY,
+					width: canvasBaseWidth,
+					height: canvasBaseHeight,
+					frameW: referenceFrameWidth,
+					frameH: referenceFrameHeight,
+					snap: snapToGrid
+				},
+				nodes: nodeList,
+				links: links.map(l => ({ id: l.id, from: l.from, to: l.to, label: l.label || '', color: l.color || '#555555' }))
+			};
+		}
+
+		function updateUndoRedoButtons() {
+			if (undoBtn) undoBtn.disabled = historyIndex <= 0;
+			if (redoBtn) redoBtn.disabled = historyIndex < 0 || historyIndex >= historyStack.length - 1;
+		}
+
+		function pushHistorySnapshot() {
+			if (isApplyingHistory) return;
+			const json = JSON.stringify(serializeEditorState());
+			if (historyStack[historyIndex] === json) {
+				updateUndoRedoButtons();
+				return;
+			}
+			if (historyIndex < historyStack.length - 1) historyStack = historyStack.slice(0, historyIndex + 1);
+			historyStack.push(json);
+			if (historyStack.length > maxHistoryEntries) historyStack.shift();
+			historyIndex = historyStack.length - 1;
+			updateUndoRedoButtons();
+		}
+
+		function scheduleHistorySnapshot() {
+			if (isApplyingHistory) return;
+			clearTimeout(historyTimer);
+			historyTimer = setTimeout(() => {
+				historyTimer = null;
+				pushHistorySnapshot();
+			}, 250);
+		}
+
+		function flushHistorySnapshot() {
+			if (historyTimer) {
+				clearTimeout(historyTimer);
+				historyTimer = null;
+				pushHistorySnapshot();
+			}
+		}
+
+		function applyHistorySnapshot(json) {
+			const data = JSON.parse(json);
+			isApplyingHistory = true;
+			try {
+				loadObjectsData(data);
+			} finally {
+				isApplyingHistory = false;
+				updateUndoRedoButtons();
+			}
+		}
+
+		function undoHistory() {
+			flushHistorySnapshot();
+			if (historyIndex <= 0) return;
+			historyIndex--;
+			applyHistorySnapshot(historyStack[historyIndex]);
+		}
+
+		function redoHistory() {
+			flushHistorySnapshot();
+			if (historyIndex >= historyStack.length - 1) return;
+			historyIndex++;
+			applyHistorySnapshot(historyStack[historyIndex]);
+		}
+
+		window.undoHistory = undoHistory;
+		window.redoHistory = redoHistory;
+
+		function chooseTextFile(accept, callback) {
+			const input = document.createElement('input');
+			input.type = 'file';
+			input.accept = accept;
+			input.style.display = 'none';
+			input.addEventListener('change', function() {
+				const file = input.files && input.files[0];
+				document.body.removeChild(input);
+				if (!file) return;
+				const reader = new FileReader();
+				reader.onload = () => callback(String(reader.result || ''));
+				reader.readAsText(file);
+			});
+			document.body.appendChild(input);
+			input.click();
+		}
+
+		function loadObjectsData(data) {
+			if (!data || !Array.isArray(data.nodes)) {
+				alert('Invalid JSON: expected saved Mermaid Visual Editor objects.');
+				return;
+			}
+
+			nodes = Object.create(null);
+			links = Array.isArray(data.links) ? data.links.map((l, idx) => ({
+				id: l.id || ('L' + (idx + 1)),
+				from: l.from,
+				to: l.to,
+				label: l.label || '',
+				color: l.color || '#555555'
+			})) : [];
+			linkElements = Object.create(null);
+			linkLabelElements = Object.create(null);
+			selected = null;
+
+			direction = data.direction || direction || 'TD';
+			if (data.template) {
+				template = {
+					id: data.template.id || 'Node_1',
+					label: data.template.label || 'Node',
+					shape: data.template.shape || 'rect',
+					parent: data.template.parent || '',
+					w: parseInt(data.template.w, 10) || defaultTemplateSizeForShape(data.template.shape || 'rect').w,
+					h: parseInt(data.template.h, 10) || defaultTemplateSizeForShape(data.template.shape || 'rect').h,
+					color: data.template.color || '#e8f4fc'
+				};
+				if (tmplId) tmplId.value = template.id;
+				if (tmplLabel) tmplLabel.value = template.label;
+				if (tmplShape) tmplShape.value = template.shape;
+				if (tmplW) tmplW.value = template.w;
+				if (tmplH) tmplH.value = template.h;
+				if (tmplColor) tmplColor.value = template.color;
+				renderTemplateParentOptions();
+				syncTemplateSizeInputs();
+			}
+
+			if (data.canvas) {
+				canvasBaseWidth = Math.max(960, parseInt(data.canvas.width, 10) || canvasBaseWidth);
+				canvasBaseHeight = Math.max(540, parseInt(data.canvas.height, 10) || canvasBaseHeight);
+				canvasZoom = Math.max(0.2, Math.min(4, parseFloat(data.canvas.zoom) || 1));
+				canvasPanX = parseFloat(data.canvas.panX) || 0;
+				canvasPanY = parseFloat(data.canvas.panY) || 0;
+				referenceFrameWidth = Math.max(960, parseFloat(data.canvas.frameW) || referenceFrameWidth);
+				referenceFrameHeight = Math.max(540, parseFloat(data.canvas.frameH) || referenceFrameHeight);
+				snapToGrid = !!data.canvas.snap;
+				if (snapToggle) snapToggle.checked = snapToGrid;
+				applyCanvasZoom();
+			}
+
+			// Clear DOM nodes but keep SVG defs; redrawLinks will rebuild SVG links.
+			const oldNodes = canvasWorld ? canvasWorld.querySelectorAll('.node') : [];
+			for (let i = 0; i < oldNodes.length; i++) oldNodes[i].remove();
+
+			for (let i = 0; i < data.nodes.length; i++) {
+				const n = data.nodes[i];
+				if (!n || !n.id) continue;
+				const node = {
+					id: n.id,
+					label: n.label || n.id,
+					left: parseFloat(n.left) || 80,
+					top: parseFloat(n.top) || 60,
+					w: parseInt(n.w, 10) || (n.shape === 'circle' ? 36 : 90),
+					h: parseInt(n.h, 10) || (n.shape === 'circle' ? 36 : 36),
+					shape: n.shape || 'rect',
+					color: n.color || '#e8f4fc',
+					hsl: n.hsl ? { h: n.hsl.h, s: n.hsl.s, l: n.hsl.l, source: n.color || '#e8f4fc' } : null,
+					parent: n.parent || null,
+					children: []
+				};
+				nodes[node.id] = node;
+				ensureCanvasWorldSize(node.left + 260, node.top + 200);
+				createNodeElement(node);
+			}
+
+			// Rebuild child lists from parent refs saved in JSON. Do not infer by geometry on load.
+			for (const id in nodes) nodes[id].children = [];
+			for (const id in nodes) {
+				const parentId = nodes[id].parent;
+				if (parentId && nodes[parentId] && parentId !== id && !isDescendantNode(parentId, id)) {
+					if (!nodes[parentId].children.includes(id)) nodes[parentId].children.push(id);
+				} else {
+					nodes[id].parent = null;
+				}
+			}
+			applyHierarchyZ();
+
+			nextNodeId = parseInt(data.nextNodeId, 10) || (Object.keys(nodes).length + 1);
+			nextLinkId = parseInt(data.nextLinkId, 10) || (links.length + 1);
+
+			updateSelectionUI();
+			updateAll();
+			lastGeneratedCode = mermaidCode.value || '';
+			requestPreviewUpdate();
+		}
+
+		function loadObjectsJsonText(text) {
+			try {
+				loadObjectsData(JSON.parse(text));
+			} catch (e) {
+				alert('Could not parse JSON.');
+			}
+		}
+
+		function loadObjectsJsonFile() {
+			chooseTextFile('.json,application/json', loadObjectsJsonText);
+		}
+
+		async function pasteObjectsJsonClipboard() {
+			try {
+				const text = await navigator.clipboard.readText();
+				loadObjectsJsonText(text);
+			} catch (e) {
+				alert('Clipboard read failed.');
+			}
+		}
+
+		function ensureMermaidInitialized() {
+			if (!mermaidInitialized) {
+				mermaid.initialize({
+					startOnLoad: false,
+					theme: 'default',
+					securityLevel: 'loose',
+					flowchart: { curve: 'linear' }
+				});
+				mermaidInitialized = true;
+			}
+		}
+
+		function safeSvgIdToNodeId(raw) {
+			raw = String(raw || '').trim();
+			if (!raw) return '';
+			raw = raw.replace(/^flowchart-/, '');
+			raw = raw.replace(/^node-/, '');
+			raw = raw.replace(/-\d+$/g, '');
+			raw = raw.replace(/[^A-Za-z0-9_]/g, '_');
+			if (/^[0-9]/.test(raw)) raw = 'N_' + raw;
+			return raw;
+		}
+
+		function getSvgTranslate(el) {
+			const tr = el.getAttribute('transform') || '';
+			let m = tr.match(/translate\s*\(\s*([-0-9.]+)[,\s]+([-0-9.]+)/);
+			if (m) return { x: parseFloat(m[1]) || 0, y: parseFloat(m[2]) || 0 };
+			m = tr.match(/matrix\s*\([^,]+,[^,]+,[^,]+,[^,]+,\s*([-0-9.]+)[,\s]+([-0-9.]+)/);
+			if (m) return { x: parseFloat(m[1]) || 0, y: parseFloat(m[2]) || 0 };
+			return null;
+		}
+
+		function getSvgBBoxSafe(el) {
+			try {
+				const b = el.getBBox();
+				if (b && isFinite(b.width) && isFinite(b.height) && b.width > 0 && b.height > 0) {
+					return { x: b.x, y: b.y, width: b.width, height: b.height };
+				}
+			} catch (e) {}
+
+			const rect = el.querySelector('rect');
+			if (rect) {
+				return {
+					x: parseFloat(rect.getAttribute('x')) || 0,
+					y: parseFloat(rect.getAttribute('y')) || 0,
+					width: parseFloat(rect.getAttribute('width')) || 90,
+					height: parseFloat(rect.getAttribute('height')) || 36
+				};
+			}
+			const circle = el.querySelector('circle');
+			if (circle) {
+				const r = parseFloat(circle.getAttribute('r')) || 36;
+				return { x: -r, y: -r, width: r * 2, height: r * 2 };
+			}
+			const polygon = el.querySelector('polygon');
+			if (polygon) {
+				const pts = (polygon.getAttribute('points') || '').trim().split(/\s+/).map(p => p.split(',').map(Number)).filter(p => p.length === 2 && isFinite(p[0]) && isFinite(p[1]));
+				if (pts.length) {
+					const xs = pts.map(p => p[0]);
+					const ys = pts.map(p => p[1]);
+					const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+					const minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+					return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+				}
+			}
+			return { x: -45, y: -18, width: 90, height: 36 };
+		}
+
+		function findEditorNodeForSvgGroup(g, used) {
+			const candidates = [];
+			const title = g.querySelector('title');
+			if (title && title.textContent) candidates.push(title.textContent.trim());
+			if (g.id) candidates.push(g.id, safeSvgIdToNodeId(g.id));
+			const dataId = g.getAttribute('data-id');
+			if (dataId) candidates.push(dataId, safeSvgIdToNodeId(dataId));
+
+			for (let i = 0; i < candidates.length; i++) {
+				const c = safeSvgIdToNodeId(candidates[i]);
+				if (nodes[c] && !used[c]) return nodes[c];
+				if (nodes[candidates[i]] && !used[candidates[i]]) return nodes[candidates[i]];
+			}
+
+			// Last-resort fallback: unique label match. Useful when Mermaid rewrites ids.
+			const text = Array.from(g.querySelectorAll('text')).map(t => t.textContent || '').join(' ').trim();
+			if (text) {
+				let found = null;
+				for (const id in nodes) {
+					if (!used[id] && (nodes[id].label || '').trim() === text) {
+						if (found) return null; // ambiguous duplicate label
+						found = nodes[id];
+					}
+				}
+				if (found) return found;
+			}
+			return null;
+		}
+
+		async function applyMermaidLayoutFromSource(sourceText) {
+			if (!sourceText || !window.mermaid || !canvasWorld) return false;
+
+			ensureMermaidInitialized();
+			const renderId = 'layout_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+			let result;
+			try {
+				result = await mermaid.render(renderId, sourceText);
+			} catch (e) {
+				return false;
+			}
+
+			// Attach hidden SVG to DOM so getBBox() works in browsers.
+			const holder = document.createElement('div');
+			holder.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:-10000px;top:-10000px;width:auto;height:auto;';
+			holder.innerHTML = result.svg;
+			document.body.appendChild(holder);
+
+			const svgEl = holder.querySelector('svg');
+			if (!svgEl) {
+				document.body.removeChild(holder);
+				return false;
+			}
+
+			const groups = Array.from(svgEl.querySelectorAll('g.node, g.cluster'));
+			const used = Object.create(null);
+			const placed = [];
+
+			for (let i = 0; i < groups.length; i++) {
+				const g = groups[i];
+				const node = findEditorNodeForSvgGroup(g, used);
+				if (!node) continue;
+
+				const tr = getSvgTranslate(g);
+				const b = getSvgBBoxSafe(g);
+				let cx, cy;
+				if (tr) {
+					// Mermaid node groups are normally translated to their center.
+					cx = tr.x;
+					cy = tr.y;
+				} else {
+					cx = b.x + b.width * 0.5;
+					cy = b.y + b.height * 0.5;
+				}
+
+				let w = Math.max(24, Math.round(b.width));
+				let h = Math.max(24, Math.round(b.height));
+				if (node.shape === 'circle') {
+					const r = Math.max(10, Math.round(Math.min(w, h) * 0.5));
+					node.w = r;
+					node.h = r;
+					w = r * 2;
+					h = r * 2;
+				} else {
+					node.w = w;
+					node.h = h;
+				}
+
+				node.left = cx - w * 0.5;
+				node.top = cy - h * 0.5;
+				used[node.id] = true;
+				placed.push(node);
+			}
+
+			document.body.removeChild(holder);
+			if (!placed.length) return false;
+
+			// Normalize imported layout so it starts inside our canvas with a small margin.
+			let minLeft = Infinity;
+			let minTop = Infinity;
+			for (let i = 0; i < placed.length; i++) {
+				minLeft = Math.min(minLeft, placed[i].left);
+				minTop = Math.min(minTop, placed[i].top);
+			}
+			const dx = 80 - minLeft;
+			const dy = 60 - minTop;
+			let maxRight = 0;
+			let maxBottom = 0;
+			for (let i = 0; i < placed.length; i++) {
+				const n = placed[i];
+				const sz = getNodeVisualSize(n);
+				setNodePosition(n, n.left + dx, n.top + dy);
+				applyNodeSize(n);
+				maxRight = Math.max(maxRight, n.left + sz.w + 220);
+				maxBottom = Math.max(maxBottom, n.top + sz.h + 180);
+			}
+			ensureCanvasWorldSize(maxRight, maxBottom);
+			redrawLinks();
+			return true;
+		}
+
+		async function loadMermaidText(text) {
+			if (!mermaidCode) return;
+
+			const sourceText = text || '';
+			mermaidCode.value = sourceText;
+
+			// Import objects with our lightweight parser first.
+			syncObjectsFromCode(sourceText);
+
+			// On LOAD ONLY: ask Mermaid/Dagre for the actual layout and copy those
+			// positions/sizes into the Visual Objects canvas. This is intentionally not
+			// repeated on normal edits because Mermaid layout is the expensive part.
+			await applyMermaidLayoutFromSource(sourceText);
+
+			updateAll();
+			lastGeneratedCode = mermaidCode.value || '';
+			requestPreviewUpdate();
+			forceRenderPreview();
+		}
+
+		function loadMermaidFile() {
+			chooseTextFile('.mmd,.mermaid,.txt,text/plain', loadMermaidText);
+		}
+
+		async function pasteMermaidClipboard() {
+			try {
+				const text = await navigator.clipboard.readText();
+				loadMermaidText(text);
+			} catch (e) {
+				alert('Clipboard read failed.');
+			}
+		}
+
+		function saveObjectsJson() {
+			downloadFile('mermaid-objects.json', 'application/json;charset=utf-8', JSON.stringify(serializeEditorState(), null, 2));
+		}
+
+		function savePreviewSvg() {
+			const svgEl = mermaidRender ? mermaidRender.querySelector('svg') : null;
+			if (!svgEl) {
+				forceRenderPreview();
+				setTimeout(savePreviewSvg, 500);
+				return;
+			}
+			let svgText = svgEl.outerHTML;
+			if (!svgText.includes('xmlns=')) {
+				svgText = svgText.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+			}
+			downloadFile('mermaid-preview.svg', 'image/svg+xml;charset=utf-8', svgText);
+		}
+
+		function saveMermaidText() {
+			downloadFile('mermaid-code.mmd', 'text/plain;charset=utf-8', mermaidCode ? (mermaidCode.value || '') : '');
+		}
+
+		// Expose load/save handlers for inline buttons
+		window.loadObjectsJsonFile = loadObjectsJsonFile;
+		window.pasteObjectsJsonClipboard = pasteObjectsJsonClipboard;
+		window.loadMermaidFile = loadMermaidFile;
+		window.pasteMermaidClipboard = pasteMermaidClipboard;
+		window.saveObjectsJson = saveObjectsJson;
+		window.savePreviewSvg = savePreviewSvg;
+		window.saveMermaidText = saveMermaidText;
+
+		// === Utility ===
+		function copyCode() {
+			const code = mermaidCode.value;
+			if (!code) return;
+			navigator.clipboard.writeText(code).then(() => {
+				const orig = event.currentTarget ? event.currentTarget.textContent : '';
+				// flash feedback
+				const btns = document.querySelectorAll('.tool-btn');
+				for (let i = 0; i < btns.length; i++) {
+					if (btns[i].textContent === 'Copy Code') {
+						const b = btns[i];
+						const old = b.textContent;
+						b.textContent = 'Copied!';
+						setTimeout(() => { b.textContent = old; }, 1200);
+						break;
+					}
+				}
+			}).catch(() => {
+				// fallback
+				mermaidCode.select();
+				document.execCommand('copy');
+			});
+		}
+
+		// Structural commit for the *editor* (canvas + code).
+		// Per requirement: "code changed by any reason -> redraw mermaid"
+		// We call updateCodeOnly() which now always does requestPreviewUpdate(),
+		// so any structural change (add/delete/drag end/clear/...) will schedule
+		// the Mermaid preview redraw (lazily, when the user becomes idle).
+		// This keeps the zero-freeze behavior while satisfying the flow.
+		function updateAll() {
+			applyHierarchyZ();
+			redrawLinks();
+			renderTemplateParentOptions();
+			updateCodeOnly();   // this now also calls requestPreviewUpdate()
+			pushHistorySnapshot();
+		}
+
+		// Property editing hot path — only the code textarea.
+		// Never touches SVG links or mermaid. This must stay allocation-free and instant.
+		// Per requirement: any code change (even from property edits) must eventually redraw mermaid.
+		function refreshLive() {
+			markUserActivity();   // treat live property typing as user activity (delays preview until idle)
+			updateCodeOnly();     // this now also calls requestPreviewUpdate() so "code changed by any reason -> redraw mermaid"
+			scheduleHistorySnapshot();
+		}
+
+		// === NEW BIDIRECTIONAL FLOW (per user request) ===
+		// Flow:
+		//   create/change objects by manual edit in visual → change code (updateCodeOnly / refreshLive)
+		//   code changed by ANY reason → redraw mermaid (the preview)
+		//   code changed by MANUAL user edit (in the textarea) → parse & update objects (nodes + links + canvas)
+
+		function isManualCodeEdit() {
+			if (!mermaidCode) return false;
+			return mermaidCode.value !== lastGeneratedCode;
+		}
+
+		function parseMermaidCodeToObjects(code) {
+			// Lightweight Mermaid FLOWCHART importer.
+			// Notes about libraries checked (2026-06): Mermaid itself exposes validation
+			// (mermaid.parse) but not a small browser semantic AST API. Existing lightweight
+			// packages are either validation-only or parse only a tiny subset, so this local
+			// parser intentionally supports the common flowchart surface we need for visual import:
+			// - graph/flowchart directions
+			// - subgraph/end (mapped to parent/children)
+			// - inline node declarations inside edges
+			// - common node shapes [] () (()) {} {{}} ([ ]) [[ ]] [( )] and fallbacks
+			// - common edge operators: -->, ---, -.->, ==>, --o, --x, <-->, etc.
+			// - edge labels in |label| and simple "-- label -->" form
+			// - style, classDef/class, :::class, linkStyle
+			// - our own %% visual metadata comments
+
+			const newNodes = Object.create(null);
+			const newLinks = [];
+			let newDirection = 'TD';
+			const nodeStyles = Object.create(null);   // safeId -> color
+			const nodeSizes = Object.create(null);    // safeId -> {w,h}
+			const nodeParents = Object.create(null);  // safeId -> parent safeId
+			const linkStyles = Object.create(null);   // zero-based link index -> color
+			const classDefs = Object.create(null);    // className -> color
+			const nodeClassRefs = Object.create(null); // safeId -> className
+			const idMap = Object.create(null);        // raw Mermaid id -> editor-safe id
+			const subgraphStack = [];
+			let nodeOrder = 0;
+
+			function stripQuotes(v) {
+				v = String(v || '').trim();
+				if ((v[0] === '"' && v[v.length - 1] === '"') ||
+					(v[0] === "'" && v[v.length - 1] === "'") ||
+					(v[0] === '`' && v[v.length - 1] === '`')) {
+					return v.slice(1, -1);
+				}
+				return v;
+			}
+
+			function normalizeId(raw) {
+				raw = stripQuotes(raw).trim();
+				if (!raw) raw = 'Node';
+				if (idMap[raw]) return idMap[raw];
+				let safe = raw.replace(/[^A-Za-z0-9_]/g, '_');
+				if (!safe) safe = 'Node';
+				if (/^[0-9]/.test(safe)) safe = 'N_' + safe;
+				const base = safe;
+				let n = 2;
+				while (newNodes[safe] && idMap[raw] !== safe) {
+					safe = base + '_' + n++;
+				}
+				idMap[raw] = safe;
+				return safe;
+			}
+
+			function defaultSize(shape) {
+				if (shape === 'circle') return { w: 36, h: 36 };
+				if (shape === 'diamond') return { w: 72, h: 72 };
+				if (shape === 'stadium') return { w: 110, h: 36 };
+				return { w: 90, h: 36 };
+			}
+
+			function cleanLabel(label) {
+				label = stripQuotes(label || '').trim();
+				return label.replace(/^:/, '').trim() || 'Node';
+			}
+
+			function parseShapeFromRest(rest) {
+				rest = (rest || '').trim();
+				if (!rest) return null;
+
+				const candidates = [
+					{ re: /^\(\((.*?)\)\)/, shape: 'circle' },
+					{ re: /^\(\[(.*?)\]\)/, shape: 'stadium' },
+					{ re: /^\[\((.*?)\)\]/, shape: 'rect' },      // cylinder/database fallback
+					{ re: /^\[\[(.*?)\]\]/, shape: 'rect' },      // subroutine fallback
+					{ re: /^\{\{(.*?)\}\}/, shape: 'diamond' },   // hexagon fallback
+					{ re: /^\{(.*?)\}/, shape: 'diamond' },
+					{ re: /^\((.*?)\)/, shape: 'round' },
+					{ re: /^\[\/(.*?)\/\]/, shape: 'rect' },
+					{ re: /^\[\\(.*?)\\\]/, shape: 'rect' },
+					{ re: /^\[\/(.*?)\\\]/, shape: 'rect' },
+					{ re: /^\[\\(.*?)\/\]/, shape: 'rect' },
+					{ re: /^\[(.*?)\]/, shape: 'rect' },
+					{ re: /^>(.*?)\]/, shape: 'rect' }
+				];
+
+				for (let i = 0; i < candidates.length; i++) {
+					const m = rest.match(candidates[i].re);
+					if (m) return { shape: candidates[i].shape, label: cleanLabel(m[1]) };
+				}
+				return null;
+			}
+
+			function ensureNode(rawId, label, shape, inlineClass) {
+				const id = normalizeId(rawId);
+				const existing = newNodes[id];
+				const sz = nodeSizes[id] || defaultSize(shape || (existing && existing.shape) || 'rect');
+
+				if (existing) {
+					if (label && (!existing.label || existing.label === existing.id)) existing.label = label;
+					if (shape && existing.shape === 'rect') existing.shape = shape;
+					if (inlineClass) {
+						nodeClassRefs[id] = inlineClass;
+						if (classDefs[inlineClass]) existing.color = classDefs[inlineClass];
+					}
+					if (nodeStyles[id]) existing.color = nodeStyles[id];
+					if (nodeParents[id]) existing.parent = nodeParents[id];
+					return existing;
+				}
+
+				const currentParent = subgraphStack.length ? subgraphStack[subgraphStack.length - 1] : null;
+				if (inlineClass) nodeClassRefs[id] = inlineClass;
+
+				const n = {
+					id: id,
+					label: label || stripQuotes(rawId) || id,
+					shape: shape || 'rect',
+					w: sz.w,
+					h: sz.h,
+					color: (inlineClass && classDefs[inlineClass]) || nodeStyles[id] || '#e8f4fc',
+					parent: nodeParents[id] || currentParent || null,
+					children: [],
+					left: 80 + (nodeOrder % 5) * 150,
+					top: 60 + Math.floor(nodeOrder / 5) * 115
+				};
+				nodeOrder++;
+				newNodes[id] = n;
+				return n;
+			}
+
+			function parseNodeExpr(expr) {
+				expr = String(expr || '').trim();
+				if (!expr) return null;
+				expr = expr.replace(/^[\s;]+|[\s;]+$/g, '');
+				expr = expr.replace(/&.*$/g, '').trim(); // Mermaid supports A & B; keep first for importer
+
+				let inlineClass = null;
+				const classMatch = expr.match(/:::\s*([A-Za-z0-9_-]+)/);
+				if (classMatch) {
+					inlineClass = classMatch[1];
+					expr = expr.replace(/:::\s*[A-Za-z0-9_-]+/, '').trim();
+				}
+
+				const idMatch = expr.match(/^("[^"]+"|'[^']+'|`[^`]+`|[A-Za-z0-9_][A-Za-z0-9_:\-.]*)/);
+				if (!idMatch) return null;
+
+				const rawId = stripQuotes(idMatch[1]);
+				const rest = expr.slice(idMatch[0].length).trim();
+				const parsedShape = parseShapeFromRest(rest);
+				return {
+					rawId: rawId,
+					id: normalizeId(rawId),
+					label: parsedShape ? parsedShape.label : null,
+					shape: parsedShape ? parsedShape.shape : 'rect',
+					inlineClass: inlineClass
+				};
+			}
+
+			function splitStatements(text) {
+				const out = [];
+				let cur = '';
+				let quote = null;
+				let depth = 0;
+				for (let i = 0; i < text.length; i++) {
+					const ch = text[i];
+					if (quote) {
+						cur += ch;
+						if (ch === quote && text[i - 1] !== '\\') quote = null;
+						continue;
+					}
+					if (ch === '"' || ch === "'" || ch === '`') { quote = ch; cur += ch; continue; }
+					if (ch === '[' || ch === '(' || ch === '{') depth++;
+					if (ch === ']' || ch === ')' || ch === '}') depth = Math.max(0, depth - 1);
+					if ((ch === ';' || ch === '\n') && depth === 0) {
+						if (cur.trim()) out.push(cur.trim());
+						cur = '';
+					} else {
+						cur += ch;
+					}
+				}
+				if (cur.trim()) out.push(cur.trim());
+				return out;
+			}
+
+			function edgeOperatorRegex() {
+				// Captures the common Mermaid flowchart edge operators, with optional |label|.
+				return /(<-->|<---|-->|---|-.->|-.-|==>|===|--o|--x|o--|x--|~~~)(?:\|([^|]*)\|)?/g;
+			}
+
+			function parseSimpleTextLabel(leftPiece, opLabel) {
+				if (opLabel) return cleanLabel(opLabel);
+				// Support: A -- yes --> B and A -. maybe .-> B in a forgiving way.
+				const m = leftPiece.match(/\s--\s*([^\-]+)$/) || leftPiece.match(/\s-\.\s*([^\.]+)$/) || leftPiece.match(/\s==\s*([^=]+)$/);
+				return m ? cleanLabel(m[1]) : '';
+			}
+
+			function parseEdgeStatement(stmt) {
+				const re = edgeOperatorRegex();
+				const matches = [];
+				let m;
+				while ((m = re.exec(stmt)) !== null) {
+					matches.push({ index: m.index, end: re.lastIndex, label: m[2] || '' });
+				}
+				if (!matches.length) return false;
+
+				const pieces = [];
+				pieces.push(stmt.slice(0, matches[0].index));
+				for (let i = 0; i < matches.length - 1; i++) {
+					pieces.push(stmt.slice(matches[i].end, matches[i + 1].index));
+				}
+				pieces.push(stmt.slice(matches[matches.length - 1].end));
+
+				for (let i = 0; i < matches.length; i++) {
+					let fromPiece = pieces[i].trim();
+					let toPiece = pieces[i + 1].trim();
+					const label = parseSimpleTextLabel(fromPiece, matches[i].label);
+					fromPiece = fromPiece.replace(/\s--\s*[^\-]+$/, '').replace(/\s-\.\s*[^\.]+$/, '').replace(/\s==\s*[^=]+$/, '').trim();
+
+					const from = parseNodeExpr(fromPiece);
+					const to = parseNodeExpr(toPiece);
+					if (!from || !to) continue;
+
+					ensureNode(from.rawId, from.label, from.shape, from.inlineClass);
+					ensureNode(to.rawId, to.label, to.shape, to.inlineClass);
+
+					newLinks.push({
+						id: 'L' + (newLinks.length + 1),
+						from: from.id,
+						to: to.id,
+						label: label,
+						color: linkStyles[newLinks.length] || '#555555'
+					});
+				}
+				return true;
+			}
+
+			function applyNodeStyle(rawId, color) {
+				const id = normalizeId(rawId);
+				nodeStyles[id] = color;
+				if (newNodes[id]) newNodes[id].color = color;
+			}
+
+			// Strip frontmatter, init blocks, and block comments lightly.
+			code = String(code || '').replace(/^---[\s\S]*?---\s*/m, '');
+			code = code.replace(/%%\{[\s\S]*?\}%%/g, '');
+
+			const statements = splitStatements(code);
+
+			for (let i = 0; i < statements.length; i++) {
+				let line = statements[i].trim();
+				if (!line) continue;
+				if (/^%%(?!\s*visual\s+)/.test(line)) continue;
+				line = line.replace(/\s+%%.*$/, '').trim();
+				if (!line) continue;
+
+				// Direction / diagram type
+				let dm = line.match(/^(flowchart|graph)\s+([A-Za-z]+)/i);
+				if (dm) {
+					const d = dm[2].toUpperCase();
+					if (d === 'LR' || d === 'TD' || d === 'TB' || d === 'BT' || d === 'RL') newDirection = (d === 'TB' ? 'TD' : d);
+					line = line.slice(dm[0].length).trim();
+					if (!line) continue;
+				}
+
+				// Subgraphs are imported as parent nodes. Nodes parsed while inside a subgraph
+				// get parent=<subgraph id>, unless visual metadata later overrides it.
+				if (/^subgraph\b/i.test(line)) {
+					let rest = line.replace(/^subgraph\s+/i, '').trim();
+					let rawId = '';
+					let label = '';
+					const sm = rest.match(/^("[^"]+"|'[^']+'|`[^`]+`|[A-Za-z0-9_][A-Za-z0-9_:\-.]*)(?:\s*\[(.*)\])?/);
+					if (sm) {
+						rawId = stripQuotes(sm[1]);
+						label = cleanLabel(sm[2] || rawId);
+					} else {
+						rawId = cleanLabel(rest).replace(/\s+/g, '_');
+						label = cleanLabel(rest);
+					}
+					const sg = ensureNode(rawId, label, 'rect', null);
+					sg.w = Math.max(sg.w || 0, 220);
+					sg.h = Math.max(sg.h || 0, 140);
+					sg.color = nodeStyles[sg.id] || '#f3f6ff';
+					subgraphStack.push(sg.id);
+					continue;
+				}
+
+				if (/^end\b/i.test(line)) {
+					subgraphStack.pop();
+					continue;
+				}
+
+				// Visual metadata comment: %% visual N1 w:90 h:36 parent:N0
+				if (line.startsWith('%%')) {
+					const vm = line.match(/^%%\s+visual\s+([^\s]+)\s+w:(\d+)\s+h:(\d+)(?:\s+parent:([^\s]+))?/);
+					if (vm) {
+						const sid = normalizeId(vm[1]);
+						const sz = { w: parseInt(vm[2], 10) || 90, h: parseInt(vm[3], 10) || 36 };
+						nodeSizes[sid] = sz;
+						if (vm[4]) nodeParents[sid] = normalizeId(vm[4]);
+						if (newNodes[sid]) {
+							newNodes[sid].w = sz.w;
+							newNodes[sid].h = sz.h;
+							if (nodeParents[sid]) newNodes[sid].parent = nodeParents[sid];
+						}
+					}
+					continue;
+				}
+
+				// classDef className fill:#... or style-like class defs
+				let cdm = line.match(/^classDef\s+([A-Za-z0-9_-]+)\s+(.*)$/i);
+				if (cdm) {
+					const fm = cdm[2].match(/\bfill\s*:\s*([^,;\s]+)/) || cdm[2].match(/\bstroke\s*:\s*([^,;\s]+)/);
+					if (fm) {
+						classDefs[cdm[1]] = fm[1].trim();
+						for (const id in nodeClassRefs) {
+							if (nodeClassRefs[id] === cdm[1] && newNodes[id]) newNodes[id].color = classDefs[cdm[1]];
+						}
+					}
+					continue;
+				}
+
+				// class A,B className
+				let cm = line.match(/^class\s+(.+?)\s+([A-Za-z0-9_-]+)\s*$/i);
+				if (cm) {
+					const cls = cm[2];
+					const color = classDefs[cls];
+					cm[1].split(',').forEach(raw => {
+						const id = normalizeId(raw.trim());
+						nodeClassRefs[id] = cls;
+						if (color) applyNodeStyle(raw.trim(), color);
+					});
+					continue;
+				}
+
+				// style N1 fill:#d4edda,stroke:#2c3e50,color:#222
+				let sm = line.match(/^style\s+([^\s]+)\s+.*?\bfill\s*:\s*([^,;\s]+)/i);
+				if (sm) {
+					applyNodeStyle(sm[1], sm[2].trim());
+					continue;
+				}
+
+				// linkStyle 0 stroke:#ff0000,color:#ff0000
+				let lm = line.match(/^linkStyle\s+(\d+)\s+.*?\bstroke\s*:\s*([^,;\s]+)/i);
+				if (lm) {
+					const idx = parseInt(lm[1], 10);
+					const color = lm[2].trim();
+					linkStyles[idx] = color;
+					if (newLinks[idx]) newLinks[idx].color = color;
+					continue;
+				}
+
+				// click/call/accTitle/accDescr/directives are intentionally ignored for visual import.
+				if (/^(click|call|accTitle|accDescr|direction)\b/i.test(line)) continue;
+
+				if (parseEdgeStatement(line)) continue;
+
+				// Standalone node declaration.
+				const parsedNode = parseNodeExpr(line);
+				if (parsedNode) {
+					ensureNode(parsedNode.rawId, parsedNode.label, parsedNode.shape, parsedNode.inlineClass);
+				}
+			}
+
+			// Apply class colors that were declared after inline :::class usage.
+			for (const id in nodeClassRefs) {
+				const cls = nodeClassRefs[id];
+				if (newNodes[id] && classDefs[cls] && !nodeStyles[id]) newNodes[id].color = classDefs[cls];
+			}
+
+			// Rebuild child lists from parent refs.
+			for (const id in newNodes) newNodes[id].children = [];
+			for (const id in newNodes) {
+				const parentId = newNodes[id].parent;
+				if (parentId && newNodes[parentId] && parentId !== id) {
+					newNodes[parentId].children.push(id);
+				} else {
+					newNodes[id].parent = null;
+				}
+			}
+
+			return { nodes: newNodes, links: newLinks, direction: newDirection };
+		}
+
+		function syncObjectsFromCode(code) {
+			if (!code || !canvas) return;
+
+			const parsed = parseMermaidCodeToObjects(code);
+			const oldNodeIds = Object.keys(nodes);
+			const newNodeIds = Object.keys(parsed.nodes);
+
+			// Remove nodes that no longer exist in code
+			for (let i = oldNodeIds.length - 1; i >= 0; i--) {
+				const id = oldNodeIds[i];
+				if (!parsed.nodes[id]) {
+					const el = nodes[id] && nodes[id].element;
+					if (el && el.parentNode) el.parentNode.removeChild(el);
+					delete nodes[id];
+				}
+			}
+
+			// Add or update nodes
+			for (const id in parsed.nodes) {
+				const p = parsed.nodes[id];
+				if (nodes[id]) {
+					// update existing
+					const n = nodes[id];
+					if (n.label !== p.label) {
+						n.label = p.label;
+						if (n.element) {
+							const lbl = n.element.querySelector('.node-label');
+							if (lbl) lbl.textContent = p.label;
+						}
+					}
+					if (n.shape !== p.shape) {
+						n.shape = p.shape;
+						if (n.element) {
+							n.element.className = 'node shape-' + n.shape + (selected && selected.type === 'node' && selected.id === n.id ? ' selected' : '');
+						}
+						applyNodeSize(n);
+					}
+					if (n.w !== p.w || n.h !== p.h) {
+						n.w = p.w;
+						n.h = p.h;
+						applyNodeSize(n);
+					}
+					if (n.parent !== p.parent) {
+						setNodeParent(n, p.parent || null);
+					}
+					if (n.color !== p.color) {
+						n.color = p.color;
+						if (n.element) n.element.style.backgroundColor = n.color;
+					}
+				} else {
+					// create new (preserve parsed position if it had one, otherwise reasonable default)
+					const node = {
+						id: p.id,
+						label: p.label,
+						left: (p.left || 80) + (Object.keys(nodes).length * 7) % 180,
+						top: (p.top || 60) + (Object.keys(nodes).length * 11) % 140,
+						w: p.w,
+						h: p.h,
+						shape: p.shape,
+						color: p.color,
+						parent: p.parent || null,
+						children: []
+					};
+					nodes[id] = node;
+					createNodeElement(node);
+				}
+			}
+
+			// Rebuild child lists from parsed parent refs. Do not infer by geometry from code sync.
+			for (const id in nodes) nodes[id].children = [];
+			for (const id in nodes) {
+				const parentId = nodes[id].parent;
+				if (parentId && nodes[parentId] && parentId !== id && !isDescendantNode(parentId, id)) {
+					if (!nodes[parentId].children.includes(id)) nodes[parentId].children.push(id);
+				} else {
+					nodes[id].parent = null;
+				}
+			}
+			applyHierarchyZ();
+
+			// Replace links completely (lightweight)
+			links = parsed.links.map((l, idx) => ({
+				id: 'L' + (idx + 1),
+				from: l.from,
+				to: l.to,
+				label: l.label,
+				color: l.color || '#555555'
+			}));
+
+			// Update direction if changed
+			if (parsed.direction && parsed.direction !== direction) {
+				direction = parsed.direction;
+			}
+
+			// Rebuild live canvas + code (but do NOT trigger another mermaid render here to avoid loops)
+			updateCodeOnly();   // keeps lastGeneratedCode in sync
+			redrawLinks();
+			updateHighlights();
+
+			// If user had a selection that no longer exists, clear it
+			if (selected) {
+				if (selected.type === 'node' && !nodes[selected.id]) {
+					deselect();
+				} else if (selected.type === 'multi') {
+					selected.ids = (selected.ids || []).filter(id => !!nodes[id]);
+					if (selected.ids.length < 2) selectMultipleNodes(selected.ids);
+				} else if (selected.type === 'link') {
+					const stillExists = links.some(l => l.id === selected.id);
+					if (!stillExists) deselect();
+				}
+			}
+		}
+
+		// Wire the textarea for manual edits
+		function setupCodeTextareaListener() {
+			if (!mermaidCode) return;
+
+			let editTimer = null;
+
+			mermaidCode.addEventListener('input', function() {
+				// Any change to the code area should eventually redraw the mermaid preview.
+				// But only a *manual* edit (value differs from lastGeneratedCode) should rebuild the visual objects.
+				markUserActivity(); // keep preview from firing *during* typing
+
+				clearTimeout(editTimer);
+				editTimer = setTimeout(() => {
+					const current = mermaidCode.value || '';
+
+					// "code changed by any reason -> redraw mermaid"
+					// Always schedule the lazy path.
+					requestPreviewUpdate();
+
+					// For better responsiveness on manual edits in the box, also try a quick render
+					// if the user has stopped for a moment (the activity guard will still protect
+					// if they keep typing rapidly).
+					if (!isRenderingMermaid && (Date.now() - lastUserActivity > 120)) {
+						setTimeout(() => {
+							if (!isRenderingMermaid && (Date.now() - lastUserActivity > 60)) {
+								performMermaidRender();
+							}
+						}, 40);
+					}
+
+					if (isManualCodeEdit()) {
+						// Manual user edit → rebuild canvas objects from the new code
+						syncObjectsFromCode(current);
+						// After sync, the objects + code are in sync again.
+						// syncObjectsFromCode regenerates the textarea; keep the baseline
+						// equal to what is actually in the textarea after sync.
+						lastGeneratedCode = mermaidCode.value || '';
+					}
+				}, 180); // small debounce
+			});
+
+			// Also react to blur / paste for immediate response
+			mermaidCode.addEventListener('blur', function() {
+				const current = mermaidCode.value || '';
+				if (isManualCodeEdit()) {
+					syncObjectsFromCode(current);
+					lastGeneratedCode = mermaidCode.value || '';
+				}
+				requestPreviewUpdate();
+			});
+
+			mermaidCode.addEventListener('paste', function() {
+				// paste can be large; give the browser a moment then process
+				setTimeout(() => {
+					const current = mermaidCode.value || '';
+					if (isManualCodeEdit()) {
+						syncObjectsFromCode(current);
+						lastGeneratedCode = mermaidCode.value || '';
+					}
+					requestPreviewUpdate();
+				}, 80);
+			});
+		}
+
+// === Measurement for the Selected Properties "background panel" ===
+// Per user request: size the background panel (last .panel) to the MAX height
+// needed by the tallest content (real 3-row node form). This value is used for
+// BOTH min-height and max-height so the panel box is locked to that size.
+// - "create background panel of max of what we need ... that will be limit min and max size together"
+// - "properly automatic calculate using available editors, so it set to max"
+// We prefer measuring a live replica of the FULL panel (including h3 + paddings)
+// built from the actual #prop-content content the user sees. This gives the
+// exact height the background panel must reserve.
+
+		// === Bootstrap ===
+		function init() {
+			// Cache elements
+			canvasPane = document.getElementById('canvas-pane');
+			canvas = document.getElementById('canvas');
+			canvasSpacer = document.getElementById('canvas-spacer');
+			canvasWorld = document.getElementById('canvas-world');
+			gridSvg = document.getElementById('grid-svg');
+			svg = document.getElementById('links-svg');
+			propContent = document.getElementById('prop-content');
+			selectedPanel = document.getElementById('selected-panel');
+			selectedCaption = document.getElementById('selected-caption');
+			selectionDropdown = document.getElementById('selection-dropdown');
+			mermaidRender = document.getElementById('mermaid-render');
+			mermaidCode = document.getElementById('mermaid-code');
+			snapToggle = document.getElementById('snap-toggle');
+			undoBtn = document.getElementById('undo-btn');
+			redoBtn = document.getElementById('redo-btn');
+			updateUndoRedoButtons();
+			applyCanvasZoom();
+
+			// Boot the rest
+			setupCanvas();
+			setupSnapToggle();
+			setupSelectionDropdown();
+			setupResizer();
+			setupCodeResizer();
+			setupTemplate();
+			setupCodeTextareaListener();
+			setMode(currentMode);
+
+			loadDemo();
+
+			// Keep infinite grid/reference frame in sync with viewport changes.
+			window.addEventListener('load', applyCanvasZoom);
+			window.addEventListener('resize', applyCanvasZoom);
+		}
+
+		// Boot
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', init);
+		} else {
+			init();
+		}
+	</script>
+</body>
+</html>
